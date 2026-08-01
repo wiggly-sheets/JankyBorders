@@ -96,6 +96,23 @@ border window to avoid creating a second overlay. Blur is disabled by default,
 accepts values from `0` through `50`, and uses a private macOS API that may
 affect performance.
 
+The `background_host` option controls which window owns the fill and blur:
+
+- `auto` (default) uses the border window with `order=below` and a target-sized
+  companion window with `order=above`.
+- `border` uses the original single-window implementation with either order.
+  With `order=above`, the fill and blur are composited above the application.
+- `companion` uses a target-sized companion window with either order. This keeps
+  blur inside the application bounds, including with `order=below`.
+
+```bash
+# Original one-window behavior with an above-order border
+borders order=above background_host=border blur_radius=20
+
+# Boundary-constrained blur with a below-order border
+borders order=below background_host=companion blur_radius=20
+```
+
 Focused and unfocused windows can override both defaults independently. For
 example, this only adds fill and blur to inactive windows:
 

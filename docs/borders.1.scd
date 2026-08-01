@@ -61,6 +61,14 @@ API, thereby being faster than comparable tools.
 *inactive_background_color=<color>*
 	Overrides the background fill color for unfocused windows.
 
+*background_host=<host>*
+	Selects the window that owns background fill and blur. _auto_ (the default)
+	uses the border window with _order=below_ and a target-sized companion window
+	with _order=above_. _border_ forces the original single-window implementation
+	with either order; with _order=above_, fill and blur are composited above the
+	application. _companion_ forces the target-sized companion with either order
+	and keeps blur inside the application bounds.
+
 *blur_radius=<float>*
 	Sets the background blur radius. Values are clamped to _50_; _0_ disables blur.
 	The blur layer remains below the application window and works with both

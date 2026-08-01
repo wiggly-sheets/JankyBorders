@@ -68,6 +68,35 @@ int main(void) {
   settings.border_order = BORDER_ORDER_BELOW;
   assert(border_background_host(&settings, false) == BORDER_BACKGROUND_BORDER);
 
+  char border_host[] = "background_host=border";
+  char* border_host_arguments[] = { border_host };
+  mask = parse_settings(&settings, 1, border_host_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  settings.border_order = BORDER_ORDER_ABOVE;
+  assert(border_background_host(&settings, true) == BORDER_BACKGROUND_BORDER);
+
+  char companion_host[] = "background_host=companion";
+  char* companion_host_arguments[] = { companion_host };
+  mask = parse_settings(&settings, 1, companion_host_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  settings.border_order = BORDER_ORDER_BELOW;
+  assert(border_background_host(&settings, false)
+         == BORDER_BACKGROUND_COMPANION);
+
+  char automatic_host[] = "background_host=auto";
+  char* automatic_host_arguments[] = { automatic_host };
+  mask = parse_settings(&settings, 1, automatic_host_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert(border_background_host(&settings, false) == BORDER_BACKGROUND_BORDER);
+
+  enum border_background_mode previous_background_mode =
+      settings.background_mode;
+  char invalid_host[] = "background_host=invalid";
+  char* invalid_host_arguments[] = { invalid_host };
+  mask = parse_settings(&settings, 1, invalid_host_arguments);
+  assert(mask == 0);
+  assert(settings.background_mode == previous_background_mode);
+
   char blur[] = "blur_radius=12.5";
   char* blur_arguments[] = { blur };
   mask = parse_settings(&settings, 1, blur_arguments);
