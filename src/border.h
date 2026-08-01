@@ -43,17 +43,18 @@ struct settings {
   struct color_style corner_mask;
   struct color_style background;
 
-float border_width;
-   float blur_radius;
-   char border_style;
-   bool hidpi;
-   bool show_background;
-   int border_order;
-   bool ax_focus;
-   int animation;
-   float animation_duration;
+  float border_width;
+  float blur_radius;
+  char border_style;
+  bool hidpi;
+  bool show_background;
+  int border_order;
+  bool ax_focus;
+  int animation;
+  float animation_duration;
+  enum animation_easing animation_easing;
 
-   bool blacklist_enabled;
+  bool blacklist_enabled;
   struct table blacklist;
 
   bool whitelist_enabled;
@@ -93,12 +94,10 @@ struct border {
   bool animating;
   int anim_mode;
   CFTimeInterval anim_start;
-  struct color_style anim_start_style;
-  struct color_style anim_end_style;
-  CGRect anim_start_frame;
-  CGRect anim_end_frame;
-  bool anim_frame_override;
-  CGRect anim_current_frame;
+  CGPoint anim_start_origin;
+  CGPoint anim_end_origin;
+  CGPoint anim_current_origin;
+  bool anim_origin_override;
   float anim_alpha;
   float anim_stroke_width;
 

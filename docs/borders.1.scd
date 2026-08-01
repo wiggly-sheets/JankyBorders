@@ -23,11 +23,25 @@ API, thereby being faster than comparable tools.
 *animation=<modes>*
 	Specifies one or more animation modes for the focused window
 	border, separated by commas. Available modes: _none_ (no
-	animation), _fade_ (opacity cross-fade), _ramp_ (glow blur
-	grows from zero to full), _slide_ (border slides from old
-	window position), _pulse_ (breathing effect where border
-	width pulses). Multiple modes can be combined, e.g.
-	animation=fade,ramp or animation=slide,pulse.
+	animation), _fade_ (opacity fades in), _ramp_ (glow grows
+	from zero to full), _slide_ (border slides from old window
+	position), _pulse_ (adaptive breathing effect that expands thin borders
+	more than thick borders). Multiple modes can be combined, e.g.
+	animation=fade,ramp or animation=slide,pulse. Selected modes
+	run simultaneously. The old border
+	immediately switches to its inactive color and only the newly focused
+	border animates. Focus changes while the primary mouse button is held
+	are applied without animation. Ramp requires a glow color. Use
+	animation=none by itself to disable animations.
+
+*animation_duration=<seconds>*
+	Sets the duration shared by all selected focus animations in seconds.
+	The value must be greater than zero. The default is _0.25_.
+
+*animation_easing=<easing>*
+	Sets the slide easing curve. Available values: _linear_,
+	_ease_in_expo_, _ease_out_expo_, and _ease_in_out_expo_. The
+	default is _linear_. Other animation modes are not affected.
 
 *active_color=<color>*
 	Sets the border color for the focused window (format: _0xAARRGGBB_). For

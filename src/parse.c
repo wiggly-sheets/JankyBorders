@@ -9,6 +9,11 @@ static bool str_starts_with(char* string, char* prefix) {
   return false;
 }
 
+static bool token_equals(const char* token, size_t token_length, const char* value) {
+  return strlen(value) == token_length
+         && strncmp(token, value, token_length) == 0;
+}
+
 static bool parse_list(struct table* list, char* token) {
   uint32_t token_len = strlen(token) + 1;
   char copy[token_len];
@@ -149,50 +154,87 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
     else if (sscanf(arguments[i], "order=%c", &order) == 1) {
       if (order == 'a') settings->border_order = BORDER_ORDER_ABOVE;
       else settings->border_order = BORDER_ORDER_BELOW;
-       update_mask |= BORDER_UPDATE_MASK_ALL;
-     }
-     else if (sscanf(arguments[i], "style=%c", &settings->border_style) == 1) {
-       update_mask |= BORDER_UPDATE_MASK_ALL;
-     }
-     else if (strncmp(arguments[i], "animation=", strlen("animation=")) == 0) {
-       char *value = arguments[i] + strlen("animation=");
-       int anim = 0;
-       char *saveptr = NULL;
-       char *token = strtok_r(value, ",", &saveptr);
-       while (token) {
-         if (strcmp(token, "none") == 0) {
-           /* none = 0, no bits set */
-         } else if (strcmp(token, "fade") == 0) {
-           anim |= ANIM_FADE;
-         } else if (strcmp(token, "ramp") == 0) {
-           anim |= ANIM_RAMP;
-         } else if (strcmp(token, "slide") == 0) {
-           anim |= ANIM_SLIDE;
-         } else if (strcmp(token, "pulse") == 0) {
-           anim |= ANIM_PULSE;
-          } else {
-           printf("[?] Borders: Invalid animation value '%s'\n", token);
-           anim = -1;
-           break;
-         }
-         token = strtok_r(NULL, ",", &saveptr);
-       }
-       if (anim >= 0) {
-         settings->animation = anim;
-         update_mask |= BORDER_UPDATE_MASK_ANIMATION;
-       }
-     }
-     else if (sscanf(arguments[i], "animation_duration=%f", &settings->animation_duration) == 1) {
-       update_mask |= BORDER_UPDATE_MASK_ANIMATION;
-     }
-     else if (strcmp(arguments[i], "hidpi=on") == 0) {
-       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
-       settings->hidpi = true;
-     }
-     else if (strcmp(arguments[i], "hidpi=off") == 0) {
-       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
-       settings->hidpi = false;
-     }
+      update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
+    else if (sscanf(arguments[i], "style=%c", &settings->border_style) == 1) {
+      update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
+    else if (str_starts_with(arguments[i], "animation=")) {
+      const char* value = arguments[i] + strlen("animation=");
+      int animation = 0;
+      bool has_none = false;
+      bool has_mode = false;
+      while (value) {
+        const char* separator = strchr(value, ',');
+        size_t token_length = separator
+                              ? (size_t)(separator - value)
+                              : strlen(value);
+        if (token_equals(value, token_length, "none")) {
+          has_none = true;
+        } else if (token_equals(value, token_length, "fade")) {
+          animation |= ANIM_FADE;
+          has_mode = true;
+        } else if (token_equals(value, token_length, "ramp")) {
+          animation |= ANIM_RAMP;
+          has_mode = true;
+        } else if (token_equals(value, token_length, "slide")) {
+          animation |= ANIM_SLIDE;
+          has_mode = true;
+        } else if (token_equals(value, token_length, "pulse")) {
+          animation |= ANIM_PULSE;
+          has_mode = true;
+        } else {
+          printf("[?] Borders: Invalid animation value '%.*s'\n",
+                 (int)token_length,
+                 value);
+          animation = -1;
+          break;
+        }
+        value = separator ? separator + 1 : NULL;
+      }
+      if (has_none && has_mode) {
+        printf("[?] Borders: animation=none cannot be combined with other modes\n");
+        animation = -1;
+      }
+      if (animation >= 0) {
+        settings->animation = animation;
+        update_mask |= BORDER_UPDATE_MASK_ANIMATION;
+      }
+    }
+    else if (str_starts_with(arguments[i], "animation_duration=")) {
+      float duration;
+      if (sscanf(arguments[i], "animation_duration=%f", &duration) == 1
+          && duration > 0.0f) {
+        settings->animation_duration = duration;
+        update_mask |= BORDER_UPDATE_MASK_ANIMATION;
+      } else {
+        printf("[?] Borders: animation_duration must be greater than zero\n");
+      }
+    }
+    else if (str_starts_with(arguments[i], "animation_easing=")) {
+      const char* easing = arguments[i] + strlen("animation_easing=");
+      if (strcmp(easing, "linear") == 0) {
+        settings->animation_easing = ANIMATION_EASING_LINEAR;
+      } else if (strcmp(easing, "ease_in_expo") == 0) {
+        settings->animation_easing = ANIMATION_EASING_EASE_IN_EXPO;
+      } else if (strcmp(easing, "ease_out_expo") == 0) {
+        settings->animation_easing = ANIMATION_EASING_EASE_OUT_EXPO;
+      } else if (strcmp(easing, "ease_in_out_expo") == 0) {
+        settings->animation_easing = ANIMATION_EASING_EASE_IN_OUT_EXPO;
+      } else {
+        printf("[?] Borders: Invalid animation easing '%s'\n", easing);
+        continue;
+      }
+      update_mask |= BORDER_UPDATE_MASK_ANIMATION;
+    }
+    else if (strcmp(arguments[i], "hidpi=on") == 0) {
+      update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
+      settings->hidpi = true;
+    }
+    else if (strcmp(arguments[i], "hidpi=off") == 0) {
+      update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
+      settings->hidpi = false;
+    }
     else if (strcmp(arguments[i], "ax_focus=on") == 0) {
       settings->ax_focus = true;
       update_mask |= BORDER_UPDATE_MASK_SETTING;

@@ -33,11 +33,29 @@ Specifies the style of the border (either \fIround\fR or \fIsquare\fR)
 .RS 4
 Specifies one or more animation modes for the focused window
 border, separated by commas.\& Available modes: \fInone\fR (no
-animation), \fIfade\fR (opacity cross\-fade), \fIramp\fR (glow blur
-grows from zero to full), \fIslide\fR (border slides from old
-window position), \fIpulse\fR (breathing effect where border
-width pulses).\& Multiple modes can be combined, e.\&g.\&
-animation=fade,ramp or animation=slide,pulse.\&
+animation), \fIfade\fR (opacity fades in), \fIramp\fR (glow grows
+from zero to full), \fIslide\fR (border slides from old window
+position), \fIpulse\fR (adaptive breathing effect that expands thin borders
+more than thick borders).\& Multiple modes can be combined, e.\&g.\&
+animation=fade,ramp or animation=slide,pulse.\& Selected modes
+run simultaneously.\& The old border
+immediately switches to its inactive color and only the newly focused
+border animates.\& Focus changes while the primary mouse button is held
+are applied without animation.\& Ramp requires a glow color.\& Use
+animation=none by itself to disable animations.\&
+.PP
+.RE
+\fBanimation_duration=<seconds>\fR
+.RS 4
+Sets the duration shared by all selected focus animations in seconds.\&
+The value must be greater than zero.\& The default is \fI0.\&25\fR.\&
+.PP
+.RE
+\fBanimation_easing=<easing>\fR
+.RS 4
+Sets the slide easing curve.\& Available values: \fIlinear\fR,
+\fIease_in_expo\fR, \fIease_out_expo\fR, and \fIease_in_out_expo\fR.\& The
+default is \fIlinear\fR.\& Other animation modes are not affected.\&
 .PP
 .RE
 \fBactive_color=<color>\fR

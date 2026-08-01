@@ -14,6 +14,12 @@ asan: | bin
 test:
 	clang -std=c99 -O0 -g -ffunction-sections tests/color_style_test.c src/hashtable.c -Wl,-dead_strip $(LIBS) -o /tmp/jankyborders-color-style-test
 	/tmp/jankyborders-color-style-test
+	clang -std=c99 -O0 -g -ffunction-sections tests/animation_focus_test.c -Wl,-dead_strip $(LIBS) -o /tmp/jankyborders-animation-focus-test
+	/tmp/jankyborders-animation-focus-test
+	clang -std=c99 -O0 -g -ffunction-sections tests/animation_tick_test.c -Wl,-dead_strip $(LIBS) -o /tmp/jankyborders-animation-tick-test
+	/tmp/jankyborders-animation-tick-test
+	clang -std=c99 -O0 -g -ffunction-sections tests/animation_parse_test.c src/hashtable.c -Wl,-dead_strip $(LIBS) -o /tmp/jankyborders-animation-parse-test
+	/tmp/jankyborders-animation-parse-test
 
 bin:
 	mkdir bin

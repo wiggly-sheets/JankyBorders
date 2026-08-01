@@ -42,10 +42,11 @@ struct settings g_settings = { .enabled = true,
                                .hidpi = false,
                                .show_background = false,
                                .border_order = BORDER_ORDER_BELOW,
-.ax_focus = false,
-    .animation = 0,
-    .animation_duration = 0.25f,
-    .blacklist_enabled = false,
+                               .ax_focus = false,
+                               .animation = 0,
+                               .animation_duration = 0.25f,
+                               .animation_easing = ANIMATION_EASING_LINEAR,
+                               .blacklist_enabled = false,
                                .whitelist_enabled = false                    };
 
 static TABLE_HASH_FUNC(hash_windows) {
@@ -120,18 +121,16 @@ static void message_handler(void* data, uint32_t len) {
     }
   }
 
-    if (update_mask & BORDER_UPDATE_MASK_RECREATE_ALL) {
-      windows_recreate_all_borders(&g_windows);
-    } else if (update_mask & BORDER_UPDATE_MASK_ALL) {
-      windows_update_all(&g_windows);
-    } else if (update_mask & BORDER_UPDATE_MASK_ACTIVE) {
-      windows_update_active(&g_windows);
-    } else if (update_mask & BORDER_UPDATE_MASK_INACTIVE) {
-      windows_update_inactive(&g_windows);
-    } else if (update_mask & BORDER_UPDATE_MASK_ANIMATION) {
-      g_animation_duration = settings.animation_duration;
-    }
+  if (update_mask & BORDER_UPDATE_MASK_RECREATE_ALL) {
+    windows_recreate_all_borders(&g_windows);
+  } else if (update_mask & BORDER_UPDATE_MASK_ALL) {
+    windows_update_all(&g_windows);
+  } else if (update_mask & BORDER_UPDATE_MASK_ACTIVE) {
+    windows_update_active(&g_windows);
+  } else if (update_mask & BORDER_UPDATE_MASK_INACTIVE) {
+    windows_update_inactive(&g_windows);
   }
+}
 
 static void send_args_to_server(mach_port_t port, int argc, char** argv) {
   int message_length = argc;
@@ -192,6 +191,7 @@ int main(int argc, char** argv) {
   g_settings.ax_focus = ax_check_trust(true);
 
   uint32_t update_mask = parse_settings(&g_settings, argc - 1, argv + 1);
+  g_animation_duration = g_settings.animation_duration;
   mach_port_t server_port = mach_get_bs_port(BS_NAME);
   if (server_port && update_mask) {
     send_args_to_server(server_port, argc, argv);
