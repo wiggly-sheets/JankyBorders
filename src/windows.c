@@ -223,17 +223,24 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
 
     if (new_settings->animation & ANIM_SLIDE) {
       CGRect old_bounds, new_bounds;
-      SLSGetWindowBounds(old_focus->cid, old_focus->target_wid, &old_bounds);
-      SLSGetWindowBounds(new_focus->cid, new_focus->target_wid, &new_bounds);
-      struct settings* old_settings = border_get_settings(old_focus);
-      float old_offset = -old_settings->border_width - BORDER_PADDING;
-      float new_offset = -new_settings->border_width - BORDER_PADDING;
-      old_bounds = CGRectInset(old_bounds, old_offset, old_offset);
-      new_bounds = CGRectInset(new_bounds, new_offset, new_offset);
-      new_focus->anim_start_origin = old_bounds.origin;
-      new_focus->anim_end_origin = new_bounds.origin;
-      new_focus->anim_current_origin = new_focus->anim_start_origin;
-      new_focus->anim_origin_override = true;
+      CGError old_bounds_error = SLSGetWindowBounds(old_focus->cid,
+                                                    old_focus->target_wid,
+                                                    &old_bounds);
+      CGError new_bounds_error = SLSGetWindowBounds(new_focus->cid,
+                                                    new_focus->target_wid,
+                                                    &new_bounds);
+      if (old_bounds_error == kCGErrorSuccess
+          && new_bounds_error == kCGErrorSuccess) {
+        struct settings* old_settings = border_get_settings(old_focus);
+        float old_offset = -old_settings->border_width - BORDER_PADDING;
+        float new_offset = -new_settings->border_width - BORDER_PADDING;
+        old_bounds = CGRectInset(old_bounds, old_offset, old_offset);
+        new_bounds = CGRectInset(new_bounds, new_offset, new_offset);
+        new_focus->anim_start_origin = old_bounds.origin;
+        new_focus->anim_end_origin = new_bounds.origin;
+        new_focus->anim_current_origin = new_focus->anim_start_origin;
+        new_focus->anim_origin_override = true;
+      }
     }
 
     new_focus->needs_redraw = true;

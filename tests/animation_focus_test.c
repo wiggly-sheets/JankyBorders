@@ -9,6 +9,7 @@ CFArrayRef (*JBSLSWindowIteratorGetCornerRadii)(CFTypeRef);
 
 static int ticker_start_count;
 static int border_update_count;
+static bool fail_window_bounds;
 
 struct settings* border_get_settings(struct border* border) {
   return border->setting_override.enabled
@@ -18,6 +19,7 @@ struct settings* border_get_settings(struct border* border) {
 
 CGError SLSGetWindowBounds(int cid, uint32_t wid, CGRect* frame) {
   (void)cid;
+  if (fail_window_bounds) return kCGErrorFailure;
   *frame = wid == 1
            ? (CGRect){{10.0, 20.0}, {100.0, 80.0}}
            : (CGRect){{300.0, 200.0}, {120.0, 90.0}};
@@ -157,6 +159,12 @@ int main(void) {
   assert(new_border.anim_duration == 0.75f);
   assert(new_border.anim_end_origin.x == 290.0f);
   assert(new_border.anim_end_origin.y == 190.0f);
+
+  assert(windows_window_focus_with_mouse_state(&stale_windows, old_key, true));
+  fail_window_bounds = true;
+  assert(windows_window_focus_with_mouse_state(&stale_windows, new_key, false));
+  assert(new_border.animating);
+  assert(!new_border.anim_origin_override);
 
   puts("animation focus transition: ok");
   return 0;
