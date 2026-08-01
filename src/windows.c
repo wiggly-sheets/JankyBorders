@@ -348,6 +348,20 @@ void windows_determine_and_focus_active_window(struct table* windows) {
 void windows_draw_borders_on_current_spaces(struct table* windows) {
   debug("Space Change: Consistency check\n");
   int cid = SLSMainConnectionID();
+
+  for (int i = 0; i < windows->capacity; ++i) {
+    struct bucket* bucket = windows->buckets[i];
+    while (bucket) {
+      struct border* border = bucket->value;
+      if (border
+          && !border->sticky
+          && !is_space_visible(cid, border->sid)) {
+        border_hide(border);
+      }
+      bucket = bucket->next;
+    }
+  }
+
   CFArrayRef displays = SLSCopyManagedDisplays(cid);
   uint32_t space_count = CFArrayGetCount(displays);
   uint64_t space_list[space_count];
@@ -396,6 +410,23 @@ void windows_draw_borders_on_current_spaces(struct table* windows) {
     CFRelease(window_list);
   }
   CFRelease(space_list_ref);
+}
+
+void windows_cleanup_orphaned_borders(struct table* windows) {
+  for (int i = 0; i < windows->capacity; ++i) {
+    struct bucket* bucket = windows->buckets[i];
+    while (bucket) {
+      struct bucket* next = bucket->next;
+      struct border* border = bucket->value;
+      if (border && !window_is_valid(border->target_wid)) {
+        debug("Cleaning up orphaned border for window: %d\n",
+              border->target_wid);
+        table_remove(windows, &border->target_wid);
+        border_destroy(border);
+      }
+      bucket = next;
+    }
+  }
 }
 
 void windows_add_existing_windows(struct table* windows) {

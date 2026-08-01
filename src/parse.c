@@ -102,10 +102,45 @@ static bool parse_color(struct color_style* style, const char* token) {
   return false;
 }
 
+static bool parse_background_color(struct color_style* background,
+                                   const char* token,
+                                   const char* name) {
+  struct color_style parsed;
+  if (!parse_color(&parsed, token)) return false;
+  if (parsed.stype == COLOR_STYLE_GRADIENT) {
+    printf("[?] Borders: %s does not support gradients\n", name);
+    return false;
+  }
+  *background = parsed;
+  return true;
+}
+
+static bool parse_blur_radius(float* result,
+                              const char* token,
+                              const char* name) {
+  float blur_radius;
+  int consumed = 0;
+  if (sscanf(token, "%f%n", &blur_radius, &consumed) != 1
+      || consumed != (int)strlen(token)
+      || !isfinite(blur_radius)
+      || blur_radius < 0.0f) {
+    printf("[?] Borders: %s must be finite and non-negative\n", name);
+    return false;
+  }
+  if (blur_radius > 50.0f) {
+    printf("[?] Borders: %s capped at 50\n", name);
+    blur_radius = 50.0f;
+  }
+  *result = blur_radius;
+  return true;
+}
+
 uint32_t parse_settings(struct settings* settings, int count, char** arguments) {
   static char active_color[] = "active_color";
   static char inactive_color[] = "inactive_color";
   static char background_color[] = "background_color";
+  static char active_background_color[] = "active_background_color";
+  static char inactive_background_color[] = "inactive_background_color";
   static char blacklist[] = "blacklist=";
   static char whitelist[] = "whitelist=";
 
@@ -124,16 +159,27 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
         update_mask |= BORDER_UPDATE_MASK_INACTIVE;
       }
     }
+    else if (str_starts_with(arguments[i], active_background_color)) {
+      if (parse_background_color(&settings->active_background,
+                                 arguments[i] + strlen(active_background_color),
+                                 active_background_color)) {
+        settings->active_background_override = true;
+        update_mask |= BORDER_UPDATE_MASK_ACTIVE;
+      }
+    }
+    else if (str_starts_with(arguments[i], inactive_background_color)) {
+      if (parse_background_color(&settings->inactive_background,
+                                 arguments[i] + strlen(inactive_background_color),
+                                 inactive_background_color)) {
+        settings->inactive_background_override = true;
+        update_mask |= BORDER_UPDATE_MASK_INACTIVE;
+      }
+    }
     else if (str_starts_with(arguments[i], background_color)) {
-      struct color_style bg;
-      if (parse_color(&bg, arguments[i] + strlen(background_color))) {
-        if (bg.stype == COLOR_STYLE_GRADIENT) {
-          printf("[?] Borders: background_color does not support gradients\n");
-        } else {
-          settings->background = bg;
-          update_mask |= BORDER_UPDATE_MASK_ALL;
-          settings->show_background = settings->background.color & 0xff000000;
-        }
+      if (parse_background_color(&settings->background,
+                                 arguments[i] + strlen(background_color),
+                                 background_color)) {
+        update_mask |= BORDER_UPDATE_MASK_ALL;
       }
     }
     else if (str_starts_with(arguments[i], blacklist)) {
@@ -235,6 +281,29 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
     else if (strcmp(arguments[i], "hidpi=off") == 0) {
       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
       settings->hidpi = false;
+    }
+    else if (str_starts_with(arguments[i], "active_blur_radius=")) {
+      if (parse_blur_radius(&settings->active_blur_radius,
+                            arguments[i] + strlen("active_blur_radius="),
+                            "active_blur_radius")) {
+        settings->active_blur_override = true;
+        update_mask |= BORDER_UPDATE_MASK_ACTIVE;
+      }
+    }
+    else if (str_starts_with(arguments[i], "inactive_blur_radius=")) {
+      if (parse_blur_radius(&settings->inactive_blur_radius,
+                            arguments[i] + strlen("inactive_blur_radius="),
+                            "inactive_blur_radius")) {
+        settings->inactive_blur_override = true;
+        update_mask |= BORDER_UPDATE_MASK_INACTIVE;
+      }
+    }
+    else if (str_starts_with(arguments[i], "blur_radius=")) {
+      if (parse_blur_radius(&settings->blur_radius,
+                            arguments[i] + strlen("blur_radius="),
+                            "blur_radius")) {
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+      }
     }
     else if (strcmp(arguments[i], "ax_focus=on") == 0) {
       settings->ax_focus = true;

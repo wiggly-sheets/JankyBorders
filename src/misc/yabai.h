@@ -26,6 +26,7 @@ struct yabai_proxy_payload {
   union { struct border* proxy; struct border* border; };
   struct settings settings;
   uint32_t border_wid;
+  uint32_t background_wid;
   uint32_t real_wid;
   uint32_t external_proxy_wid;
 };
@@ -98,6 +99,9 @@ static void* yabai_proxy_begin_proc(void* context) {
                               info->external_proxy_wid    );
 
     SLSTransactionSetWindowAlpha(transaction, info->border_wid, 0.f);
+    if (info->background_wid) {
+      SLSTransactionSetWindowAlpha(transaction, info->background_wid, 0.f);
+    }
     SLSTransactionSetWindowAlpha(transaction, proxy->wid, 1.f);
     SLSTransactionCommit(transaction, 0);
     CFRelease(transaction);
@@ -145,6 +149,7 @@ static inline void yabai_proxy_begin(struct table* windows, uint32_t wid, uint32
                             = malloc(sizeof(struct yabai_proxy_payload));
     payload->proxy = border->proxy;
     payload->border_wid = border->wid;
+    payload->background_wid = border->background_wid;
     payload->external_proxy_wid = border->external_proxy_wid;
     payload->real_wid = real_wid;
     payload->settings = *border_get_settings(border);
@@ -169,6 +174,11 @@ static inline void yabai_proxy_end(struct table* windows, uint32_t wid, uint32_t
     if (transaction) {
       SLSTransactionSetWindowAlpha(transaction, proxy->wid, 0.f);
       SLSTransactionSetWindowAlpha(transaction, border->wid, 1.f);
+      if (border->background_wid) {
+        SLSTransactionSetWindowAlpha(transaction,
+                                     border->background_wid,
+                                     1.f);
+      }
       SLSTransactionCommit(transaction, 0);
       CFRelease(transaction);
     }
@@ -181,6 +191,7 @@ static inline void yabai_proxy_end(struct table* windows, uint32_t wid, uint32_t
 
     payload->border = border;
     payload->border_wid = border->wid;
+    payload->background_wid = border->background_wid;
     payload->settings = *border_get_settings(border);
 
     dispatch_async(dispatch_get_main_queue(), ^{

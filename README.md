@@ -82,6 +82,37 @@ as:
 borders 'active_color=glow(0xffe2e2e3)' animation=ramp,pulse
 ```
 
+#### Adding a window background and blur
+
+With `order=above`, background fill and blur use a companion layer below each
+application window so the border can remain above the application:
+
+```bash
+borders order=above background_color=0x80000000 blur_radius=20
+```
+
+The same options work with `order=below`; in that mode, fill and blur share the
+border window to avoid creating a second overlay. Blur is disabled by default,
+accepts values from `0` through `50`, and uses a private macOS API that may
+affect performance.
+
+Focused and unfocused windows can override both defaults independently. For
+example, this only adds fill and blur to inactive windows:
+
+```bash
+borders order=above \
+  inactive_background_color=0x80000000 \
+  inactive_blur_radius=20
+```
+
+The available overrides are `active_background_color`,
+`inactive_background_color`, `active_blur_radius`, and
+`inactive_blur_radius`. Windows without an override continue to use
+`background_color` and `blur_radius`. Companion backgrounds are ordered out
+immediately when their target is hidden, minimized, or on a non-visible Space.
+Their backing resources are released after a ten-second grace period, unless
+the target becomes visible again first.
+
 #### Using a configuration file (Optional)
 If the primary `borders` process is started without any arguments (or launched
 as a service by brew), it will search for a file at

@@ -56,6 +56,80 @@ int main(void) {
   assert(!settings.active_window.glow);
   assert(settings.active_window.color == 0xffabcdef);
 
+  char background[] = "background_color=0x80112233";
+  char* background_arguments[] = { background };
+  mask = parse_settings(&settings, 1, background_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert(settings.background.color == 0x80112233);
+  assert(border_background_color(&settings, true) == 0x80112233);
+  assert(border_background_color(&settings, false) == 0x80112233);
+  settings.border_order = BORDER_ORDER_ABOVE;
+  assert(border_background_host(&settings, true) == BORDER_BACKGROUND_COMPANION);
+  settings.border_order = BORDER_ORDER_BELOW;
+  assert(border_background_host(&settings, false) == BORDER_BACKGROUND_BORDER);
+
+  char blur[] = "blur_radius=12.5";
+  char* blur_arguments[] = { blur };
+  mask = parse_settings(&settings, 1, blur_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert_close(settings.blur_radius, 12.5f);
+
+  char clamped_blur[] = "blur_radius=100";
+  char* clamped_blur_arguments[] = { clamped_blur };
+  mask = parse_settings(&settings, 1, clamped_blur_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert_close(settings.blur_radius, 50.0f);
+
+  char invalid_blur[] = "blur_radius=-1";
+  char* invalid_blur_arguments[] = { invalid_blur };
+  mask = parse_settings(&settings, 1, invalid_blur_arguments);
+  assert(mask == 0);
+  assert_close(settings.blur_radius, 50.0f);
+
+  settings.background.color = 0;
+  settings.blur_radius = 0.0f;
+  assert(border_background_host(&settings, true) == BORDER_BACKGROUND_NONE);
+
+  struct settings state_settings = { .border_order = BORDER_ORDER_ABOVE };
+  char inactive_background[] = "inactive_background_color=0x80123456";
+  char* inactive_background_arguments[] = { inactive_background };
+  mask = parse_settings(&state_settings, 1, inactive_background_arguments);
+  assert(mask == BORDER_UPDATE_MASK_INACTIVE);
+  assert(state_settings.inactive_background_override);
+  assert(border_background_color(&state_settings, false) == 0x80123456);
+  assert(border_background_color(&state_settings, true) == 0);
+
+  char inactive_blur[] = "inactive_blur_radius=20";
+  char* inactive_blur_arguments[] = { inactive_blur };
+  mask = parse_settings(&state_settings, 1, inactive_blur_arguments);
+  assert(mask == BORDER_UPDATE_MASK_INACTIVE);
+  assert(state_settings.inactive_blur_override);
+  assert_close(border_background_blur_radius(&state_settings, false), 20.0f);
+  assert_close(border_background_blur_radius(&state_settings, true), 0.0f);
+  assert(border_background_host(&state_settings, false)
+         == BORDER_BACKGROUND_COMPANION);
+  assert(border_background_host(&state_settings, true)
+         == BORDER_BACKGROUND_NONE);
+
+  char active_background[] = "active_background_color=0xffabcdef";
+  char* active_background_arguments[] = { active_background };
+  mask = parse_settings(&state_settings, 1, active_background_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ACTIVE);
+  assert(state_settings.active_background_override);
+  assert(border_background_color(&state_settings, true) == 0xffabcdef);
+
+  char active_blur[] = "active_blur_radius=7.5";
+  char* active_blur_arguments[] = { active_blur };
+  mask = parse_settings(&state_settings, 1, active_blur_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ACTIVE);
+  assert(state_settings.active_blur_override);
+  assert_close(border_background_blur_radius(&state_settings, true), 7.5f);
+
+  assert(!border_should_update_background_placement(true, true, false));
+  assert(border_should_update_background_placement(true, true, true));
+  assert(border_should_update_background_placement(true, false, false));
+  assert(!border_should_update_background_placement(false, false, true));
+
   struct color_style previous_style = settings.active_window;
   char invalid[] = "active_color=glow(0xff123456)trailing";
   char* invalid_arguments[] = { invalid };
@@ -78,6 +152,6 @@ int main(void) {
   assert_close(g, 0.0f);
   assert_close(b, 1.0f);
 
-  puts("color style parsing and glow mixing: ok");
+  puts("color, background, and blur parsing: ok");
   return 0;
 }

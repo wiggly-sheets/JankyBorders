@@ -52,6 +52,29 @@ API, thereby being faster than comparable tools.
 
 *background_color=<color>*
 	Sets the background fill color for all windows (only _0xAARRGGBB_ arguments supported).
+	The background is kept below the application window regardless of the border order.
+	Acts as the fallback when a focused-state override is not configured.
+
+*active_background_color=<color>*
+	Overrides the background fill color for the focused window.
+
+*inactive_background_color=<color>*
+	Overrides the background fill color for unfocused windows.
+
+*blur_radius=<float>*
+	Sets the background blur radius. Values are clamped to _50_; _0_ disables blur.
+	The blur layer remains below the application window and works with both
+	_order=above_ and _order=below_. Below-order borders reuse their existing window;
+	above-order borders use a companion window. Blur uses a private macOS API and
+	may affect performance. Acts as the fallback when a focused-state override is
+	not configured. Hidden and non-visible companion windows are released after a
+	ten-second grace period unless their target becomes visible again first.
+
+*active_blur_radius=<float>*
+	Overrides the background blur radius for the focused window.
+
+*inactive_blur_radius=<float>*
+	Overrides the background blur radius for unfocused windows.
 
 *width=<float>*
 	Determines the width of the border. For example, width=5.0 creates a border

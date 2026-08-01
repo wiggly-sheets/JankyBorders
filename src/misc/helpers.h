@@ -2,6 +2,7 @@
 #include "extern.h"
 #include "sys/stat.h"
 #include "ApplicationServices/ApplicationServices.h"
+#include <stdlib.h>
 
 #define DELAY_ASYNC_EXEC_ON_MAIN_THREAD(delay, code) {\
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{\
@@ -77,11 +78,25 @@ static inline void execute_config_file(const char* name, const char* filename) {
   exit(execvp(exec[0], exec));
 }
 
-static inline  CFArrayRef cfarray_of_cfnumbers(void* values, size_t size, int count, CFNumberType type) {
-  CFNumberRef temp[count];
+static inline CFArrayRef cfarray_of_cfnumbers(void* values,
+                                             size_t size,
+                                             int count,
+                                             CFNumberType type) {
+  if (count <= 0) {
+    return CFArrayCreate(NULL, NULL, 0, &kCFTypeArrayCallBacks);
+  }
+  if (!values) return NULL;
+
+  CFNumberRef* temp = calloc((size_t)count, sizeof(CFNumberRef));
+  if (!temp) return NULL;
 
   for (int i = 0; i < count; ++i) {
     temp[i] = CFNumberCreate(NULL, type, ((char *)values) + (size * i));
+    if (!temp[i]) {
+      for (int j = 0; j < i; ++j) CFRelease(temp[j]);
+      free(temp);
+      return NULL;
+    }
   }
 
   CFArrayRef result = CFArrayCreate(NULL,
@@ -90,6 +105,7 @@ static inline  CFArrayRef cfarray_of_cfnumbers(void* values, size_t size, int co
                                     &kCFTypeArrayCallBacks);
 
   for (int i = 0; i < count; ++i) CFRelease(temp[i]);
+  free(temp);
 
   return result;
 }

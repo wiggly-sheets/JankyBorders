@@ -126,20 +126,29 @@ static inline CGGradientRef drawing_create_gradient(const struct gradient* gradi
   colors_from_hex(gradient->color2, &a2, &r2, &g2, &b2);
   CGColorRef c[] = { CGColorCreateSRGB(r1, g1, b1, a1),
                      CGColorCreateSRGB(r2, g2, b2, a2) };
+  if (!c[0] || !c[1]) {
+    if (c[0]) CGColorRelease(c[0]);
+    if (c[1]) CGColorRelease(c[1]);
+    return NULL;
+  }
   CFArrayRef cfc = CFArrayCreate(NULL,
                                  (const void **)c,
                                  2,
                                  &kCFTypeArrayCallBacks);
+  if (!cfc) {
+    CGColorRelease(c[0]);
+    CGColorRelease(c[1]);
+    return NULL;
+  }
   CGGradientRef result = CGGradientCreateWithColors(NULL, cfc, NULL);
   CFRelease(cfc);
   CGColorRelease(c[0]);
   CGColorRelease(c[1]);
+  direction[0] = CGPointMake(0, 1);
+  direction[1] = CGPointMake(1, 0);
   if (gradient->direction == TR_TO_BL) {
     direction[0] = CGPointMake(1, 1);
     direction[1] = CGPointZero;
-  } else if (gradient->direction == TL_TO_BR) {
-    direction[0] = CGPointMake(0, 1);
-    direction[1] = CGPointMake(1, 0);
   }
   direction[0] = CGPointApplyAffineTransform(direction[0], trans);
   direction[1] = CGPointApplyAffineTransform(direction[1], trans);

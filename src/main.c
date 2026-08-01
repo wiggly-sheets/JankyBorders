@@ -40,7 +40,6 @@ struct settings g_settings = { .enabled = true,
                                .blur_radius = 0,
                                .border_style = BORDER_STYLE_ROUND,
                                .hidpi = false,
-                               .show_background = false,
                                .border_order = BORDER_ORDER_BELOW,
                                .ax_focus = false,
                                .animation = 0,
@@ -236,6 +235,19 @@ int main(int argc, char** argv) {
   #ifdef _YABAI_INTEGRATION
   yabai_register_mach_port(&g_windows);
   #endif
+
+  dispatch_source_t cleanup_timer = dispatch_source_create(
+      DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+  dispatch_source_set_timer(cleanup_timer,
+                            dispatch_time(DISPATCH_TIME_NOW,
+                                          60ull * NSEC_PER_SEC),
+                            60ull * NSEC_PER_SEC,
+                            10ull * NSEC_PER_SEC);
+  dispatch_source_set_event_handler(cleanup_timer, ^{
+    windows_cleanup_orphaned_borders(&g_windows);
+  });
+  dispatch_resume(cleanup_timer);
+
   CFRunLoopRun();
   return 0;
 }
