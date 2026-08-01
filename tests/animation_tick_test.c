@@ -33,6 +33,7 @@ int main(void) {
     .animating = true,
     .anim_mode = ANIM_SLIDE | ANIM_PULSE,
     .anim_start = CACurrentMediaTime() - 1.0,
+    .anim_duration = 0.01f,
     .anim_origin_override = true,
   };
   struct bucket bucket = {
@@ -41,14 +42,12 @@ int main(void) {
   struct bucket* buckets[] = { &bucket };
   g_windows.buckets = buckets;
   g_windows.capacity = 1;
-  g_animation_duration = 0.01f;
-
   animation_tick_callback(NULL, NULL);
 
   assert(!border.animating);
   assert(border.anim_mode == 0);
   assert(!border.anim_origin_override);
-  assert(animating_update_count == 1);
+  assert(animating_update_count == 0);
   assert(final_update_count == 1);
 
   puts("animation completion cleanup: ok");

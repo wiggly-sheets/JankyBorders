@@ -5,11 +5,16 @@
 
 pid_t g_pid;
 struct settings g_settings;
-float g_animation_duration;
 CFArrayRef (*JBSLSWindowIteratorGetCornerRadii)(CFTypeRef);
 
 static int ticker_start_count;
 static int border_update_count;
+
+struct settings* border_get_settings(struct border* border) {
+  return border->setting_override.enabled
+         ? &border->setting_override
+         : &g_settings;
+}
 
 CGError SLSGetWindowBounds(int cid, uint32_t wid, CGRect* frame) {
   (void)cid;
@@ -117,6 +122,41 @@ int main(void) {
   assert(animation_lerp(new_border.anim_start_origin.x,
                         new_border.anim_end_origin.x,
                         0.5f) == 142.0f);
+
+  struct bucket* stale_buckets[1] = {};
+  struct table stale_windows = {
+    .buckets = stale_buckets,
+    .capacity = 1,
+  };
+  uint32_t stale_key = 3;
+  struct bucket stale_bucket = {};
+  struct border stale_border = {
+    .cid = 1,
+    .focused = true,
+    .target_wid = stale_key,
+  };
+  old_border.focused = true;
+  new_border.focused = false;
+  add_border(&stale_windows, &old_bucket, &old_key, &old_border);
+  add_border(&stale_windows, &stale_bucket, &stale_key, &stale_border);
+  add_border(&stale_windows, &new_bucket, &new_key, &new_border);
+
+  assert(windows_window_focus_with_mouse_state(&stale_windows, new_key, false));
+  assert(!old_border.focused);
+  assert(!stale_border.focused);
+  assert(new_border.focused);
+
+  assert(windows_window_focus_with_mouse_state(&stale_windows, old_key, true));
+  new_border.setting_override = g_settings;
+  new_border.setting_override.enabled = true;
+  new_border.setting_override.animation = ANIM_SLIDE;
+  new_border.setting_override.animation_duration = 0.75f;
+  new_border.setting_override.border_width = 2.0f;
+  assert(windows_window_focus_with_mouse_state(&stale_windows, new_key, false));
+  assert(new_border.anim_mode == ANIM_SLIDE);
+  assert(new_border.anim_duration == 0.75f);
+  assert(new_border.anim_end_origin.x == 290.0f);
+  assert(new_border.anim_end_origin.y == 190.0f);
 
   puts("animation focus transition: ok");
   return 0;

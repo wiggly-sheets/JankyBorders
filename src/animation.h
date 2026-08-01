@@ -43,4 +43,3 @@ void animation_stop(struct animation* animation);
 void animation_start_ticker(void);
 void animation_stop_ticker(void);
 bool animation_is_running(void);
-extern float g_animation_duration;

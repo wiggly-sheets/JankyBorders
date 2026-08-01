@@ -7,8 +7,6 @@
 
 extern struct table g_windows;
 
-float g_animation_duration = 0.25f;
-
 static CFRunLoopTimerRef g_anim_timer = NULL;
 
 float animation_ease(enum animation_easing easing, float progress) {
@@ -71,20 +69,21 @@ static void animation_tick_callback(CFRunLoopTimerRef timer, void* info) {
     while (bucket) {
       struct border* border = bucket->value;
       if (border->animating) {
-        float progress = g_animation_duration > 0.0f
+        float progress = border->anim_duration > 0.0f
                          ? (float)((now - border->anim_start)
-                                   / g_animation_duration)
+                                   / border->anim_duration)
                          : 1.0f;
         if (progress >= 1.0f) progress = 1.0f;
         border->anim_alpha = progress;
-        border_update_animating(border, progress);
         if (progress >= 1.0f) {
           border->animating = false;
           border->anim_origin_override = false;
           border->anim_mode = 0;
+          border->anim_duration = 0.0f;
           border->needs_redraw = true;
           border_update(border, false);
         } else {
+          border_update_animating(border, progress);
           any_animating = true;
         }
       }

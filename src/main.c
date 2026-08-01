@@ -92,7 +92,6 @@ static void message_handler(void* data, uint32_t len) {
     return;
   } else {
     g_settings = settings;
-    g_animation_duration = settings.animation_duration;
     for (int i = 0; i < g_windows.capacity; ++i) {
       struct bucket* bucket = g_windows.buckets[i];
       while (bucket) {
@@ -191,7 +190,6 @@ int main(int argc, char** argv) {
   g_settings.ax_focus = ax_check_trust(true);
 
   uint32_t update_mask = parse_settings(&g_settings, argc - 1, argv + 1);
-  g_animation_duration = g_settings.animation_duration;
   mach_port_t server_port = mach_get_bs_port(BS_NAME);
   if (server_port && update_mask) {
     send_args_to_server(server_port, argc, argv);

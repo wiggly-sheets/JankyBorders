@@ -68,9 +68,10 @@ The available modes are:
 - `none` disables focus animations and should be used by itself.
 
 Comma-separated modes run simultaneously and share `animation_duration`,
-which defaults to `0.25` seconds. The old border immediately switches to its
-inactive color; only the newly focused border animates. Focus changes while
-the primary mouse button is held are also applied without animation.
+which accepts a finite positive number and defaults to `0.25` seconds. The old
+border immediately switches to its inactive color; only the newly focused
+border animates. Focus changes while the primary mouse button is held are also
+applied without animation.
 
 Slide supports `animation_easing=linear`, `ease_in_expo`, `ease_out_expo`, or
 `ease_in_out_expo`. Easing affects only slide; the other modes keep their

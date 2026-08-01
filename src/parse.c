@@ -204,11 +204,12 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
     else if (str_starts_with(arguments[i], "animation_duration=")) {
       float duration;
       if (sscanf(arguments[i], "animation_duration=%f", &duration) == 1
-          && duration > 0.0f) {
+          && duration > 0.0f
+          && isfinite(duration)) {
         settings->animation_duration = duration;
         update_mask |= BORDER_UPDATE_MASK_ANIMATION;
       } else {
-        printf("[?] Borders: animation_duration must be greater than zero\n");
+        printf("[?] Borders: animation_duration must be finite and greater than zero\n");
       }
     }
     else if (str_starts_with(arguments[i], "animation_easing=")) {

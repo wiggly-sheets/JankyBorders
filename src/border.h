@@ -94,6 +94,7 @@ struct border {
   bool animating;
   int anim_mode;
   CFTimeInterval anim_start;
+  float anim_duration;
   CGPoint anim_start_origin;
   CGPoint anim_end_origin;
   CGPoint anim_current_origin;

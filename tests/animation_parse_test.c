@@ -44,6 +44,12 @@ int main(void) {
   assert(mask == 0);
   assert(settings.animation_duration == 0.4f);
 
+  char infinite_duration[] = "animation_duration=inf";
+  char* infinite_duration_arguments[] = { infinite_duration };
+  mask = parse_settings(&settings, 1, infinite_duration_arguments);
+  assert(mask == 0);
+  assert(settings.animation_duration == 0.4f);
+
   puts("animation settings parsing: ok");
   return 0;
 }

@@ -36,7 +36,7 @@ API, thereby being faster than comparable tools.
 
 *animation_duration=<seconds>*
 	Sets the duration shared by all selected focus animations in seconds.
-	The value must be greater than zero. The default is _0.25_.
+	The value must be finite and greater than zero. The default is _0.25_.
 
 *animation_easing=<easing>*
 	Sets the slide easing curve. Available values: _linear_,

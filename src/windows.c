@@ -165,6 +165,14 @@ void windows_window_update(struct table* windows, uint32_t wid) {
   if (border) border_update(border, true);
 }
 
+static void windows_cancel_border_animation(struct border* border) {
+  border->animating = false;
+  border->anim_mode = 0;
+  border->anim_duration = 0.0f;
+  border->anim_origin_override = false;
+  border->anim_alpha = 1.0f;
+}
+
 static bool windows_window_focus_with_mouse_state(struct table* windows,
                                                   uint32_t wid,
                                                   bool mouse_down) {
@@ -183,50 +191,54 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
     }
   }
 
-  if (g_settings.animation != 0 && old_focus && new_focus && !mouse_down) {
+  struct settings* new_settings = new_focus
+                                  ? border_get_settings(new_focus)
+                                  : NULL;
+  if (new_settings
+      && new_settings->animation != 0
+      && old_focus
+      && !mouse_down) {
     CFTimeInterval now = CACurrentMediaTime();
-    old_focus->focused = false;
+    for (int i = 0; i < windows->capacity; ++i) {
+      struct bucket* bucket = windows->buckets[i];
+      while (bucket) {
+        struct border* border = bucket->value;
+        if (border && border->focused && border != new_focus) {
+          windows_cancel_border_animation(border);
+          border->focused = false;
+          border->needs_redraw = true;
+          border_update(border, false);
+        }
+        bucket = bucket->next;
+      }
+    }
+
+    windows_cancel_border_animation(new_focus);
     new_focus->focused = true;
-    old_focus->anim_origin_override = false;
-    new_focus->anim_origin_override = false;
-
-    old_focus->anim_mode = 0;
-    old_focus->animating = false;
-    old_focus->anim_start = now;
-    old_focus->anim_alpha = 0.0f;
-
     new_focus->animating = true;
-    new_focus->anim_mode = g_settings.animation;
+    new_focus->anim_mode = new_settings->animation;
     new_focus->anim_start = now;
+    new_focus->anim_duration = new_settings->animation_duration;
     new_focus->anim_alpha = 0.0f;
 
-    if (g_settings.animation & ANIM_SLIDE) {
+    if (new_settings->animation & ANIM_SLIDE) {
       CGRect old_bounds, new_bounds;
       SLSGetWindowBounds(old_focus->cid, old_focus->target_wid, &old_bounds);
       SLSGetWindowBounds(new_focus->cid, new_focus->target_wid, &new_bounds);
-      float border_offset = -g_settings.border_width - BORDER_PADDING;
-      old_bounds = CGRectInset(old_bounds, border_offset, border_offset);
-      new_bounds = CGRectInset(new_bounds, border_offset, border_offset);
+      struct settings* old_settings = border_get_settings(old_focus);
+      float old_offset = -old_settings->border_width - BORDER_PADDING;
+      float new_offset = -new_settings->border_width - BORDER_PADDING;
+      old_bounds = CGRectInset(old_bounds, old_offset, old_offset);
+      new_bounds = CGRectInset(new_bounds, new_offset, new_offset);
       new_focus->anim_start_origin = old_bounds.origin;
       new_focus->anim_end_origin = new_bounds.origin;
       new_focus->anim_current_origin = new_focus->anim_start_origin;
       new_focus->anim_origin_override = true;
     }
 
-    old_focus->needs_redraw = true;
     new_focus->needs_redraw = true;
-    if (!old_focus->animating) border_update(old_focus, false);
     animation_start_ticker();
     return true;
-  }
-
-  if (old_focus && new_focus) {
-    old_focus->animating = false;
-    old_focus->anim_mode = 0;
-    old_focus->anim_origin_override = false;
-    new_focus->animating = false;
-    new_focus->anim_mode = 0;
-    new_focus->anim_origin_override = false;
   }
 
   bool found_window = false;
@@ -236,12 +248,14 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
       if (bucket->value) {
         struct border* border = bucket->value;
         if (border->focused && border->target_wid != wid) {
+          windows_cancel_border_animation(border);
           border->focused = false;
           border->needs_redraw = true;
           border_update(border, true);
         }
 
         if (!border->focused && border->target_wid == wid) {
+          windows_cancel_border_animation(border);
           border->focused = true;
           border->needs_redraw = true;
           border_update(border, true);
