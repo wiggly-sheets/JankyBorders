@@ -30,13 +30,19 @@ mach_port_t g_server_port;
 struct table g_windows;
 struct mach_server g_mach_server;
 struct settings g_settings = { .enabled = true,
-                               .active_window = { .stype = COLOR_STYLE_SOLID,
-                                                  .color = 0xffe1e3e4 },
-                               .inactive_window = { .stype = COLOR_STYLE_SOLID,
-                                                    .color =  0x00000000 },
+                               .active_window = {
+                                 .layer_count = 1,
+                                 .layers = {{ .stype = COLOR_STYLE_SOLID,
+                                              .color = 0xffe1e3e4 }}},
+                               .inactive_window = {
+                                 .layer_count = 1,
+                                 .layers = {{ .stype = COLOR_STYLE_SOLID,
+                                              .color =  0x00000000 }}},
                                .background = { .stype = COLOR_STYLE_SOLID,
                                                .color = 0x00000000         },
                                .border_width = 4.f,
+                               .inner_border_width = 4.f,
+                               .double_border_gap = 0.f,
                                .blur_radius = 0,
                                .border_style = BORDER_STYLE_ROUND,
                                .hidpi = false,

@@ -222,7 +222,7 @@ static bool border_calculate_bounds(struct border* border, CGRect* frame, struct
     return false;
   }
 
-  float border_offset = - settings->border_width - BORDER_PADDING;
+  float border_offset = -border_max_extent(settings) - BORDER_PADDING;
   *frame = CGRectInset(window_frame, border_offset, border_offset);
 
   border->origin = frame->origin;
@@ -285,24 +285,105 @@ static float border_animation_glow_blur(struct border* border, float base) {
   return border->anim_alpha * base;
 }
 
+static void border_draw_double_layer(struct border* border,
+                                     const struct color_style* style,
+                                     CGRect frame,
+                                     CGRect path_rect,
+                                     float center_offset,
+                                     float width,
+                                     float corner_radius,
+                                     bool square) {
+  CGContextRef context = border->context;
+  CGRect layer_rect = CGRectInset(path_rect, -center_offset, -center_offset);
+  float layer_corner_radius = border_layer_corner_radius(corner_radius,
+                                                         center_offset);
+  CGContextSaveGState(context);
+  CGContextSetLineWidth(context, width);
+
+  if (style->stype == COLOR_STYLE_SOLID) {
+    drawing_set_stroke_and_fill(context, style->color, style->glow);
+    if (style->glow && border->animating && (border->anim_mode & ANIM_RAMP)) {
+      float a, r, g, b;
+      colors_from_hex(style->color, &a, &r, &g, &b);
+      CGColorRef glow_color = CGColorCreateGenericRGB(r, g, b, 1.0f);
+      CGContextSetShadowWithColor(context,
+                                  CGSizeZero,
+                                  border_animation_glow_blur(border, 10.0f),
+                                  glow_color);
+      CGColorRelease(glow_color);
+    }
+    if (square) drawing_add_rect_with_inset(context, layer_rect, 0.0f);
+    else drawing_add_rounded_rect(context,
+                                  layer_rect,
+                                  layer_corner_radius);
+    CGContextStrokePath(context);
+  } else {
+    CGPoint gradient_dir[2];
+    CGAffineTransform transform = CGAffineTransformMakeScale(frame.size.width,
+                                                             frame.size.height);
+    CGGradientRef gradient = drawing_create_gradient(&style->gradient,
+                                                     transform,
+                                                     gradient_dir);
+    if (!gradient) {
+      drawing_set_stroke(context, style->gradient.color1);
+      if (square) drawing_add_rect_with_inset(context, layer_rect, 0.0f);
+      else drawing_add_rounded_rect(context,
+                                    layer_rect,
+                                    layer_corner_radius);
+      CGContextStrokePath(context);
+      CGContextRestoreGState(context);
+      return;
+    }
+
+    if (style->glow) {
+      float blur_radius = border_animation_glow_blur(border, 10.0f);
+      border_draw_gradient_glow(context,
+                                &style->gradient,
+                                layer_rect,
+                                0.0f,
+                                layer_corner_radius,
+                                blur_radius,
+                                square);
+    }
+
+    if (square) drawing_add_rect_with_inset(context, layer_rect, 0.0f);
+    else drawing_add_rounded_rect(context,
+                                  layer_rect,
+                                  layer_corner_radius);
+    CGContextReplacePathWithStrokedPath(context);
+    CGContextClip(context);
+    CGContextDrawLinearGradient(context,
+                                gradient,
+                                gradient_dir[0],
+                                gradient_dir[1],
+                                0);
+    CGGradientRelease(gradient);
+  }
+  CGContextRestoreGState(context);
+}
+
 static void border_draw(struct border* border, CGRect frame, struct settings* settings) {
   if (!border->context) return;
   CGContextSaveGState(border->context);
   border->needs_redraw = false;
-  float effective_border_width = border->animating
-                                 && (border->anim_mode & ANIM_PULSE)
-                                 ? border->anim_stroke_width
-                                 : settings->border_width;
-  struct color_style color_style = border->focused
-                                   ? settings->active_window
-                                   : settings->inactive_window;
+  struct border_appearance appearance = border->focused
+                                        ? settings->active_window
+                                        : settings->inactive_window;
+  bool is_double = appearance.layer_count == 2;
+  struct color_style color_style = appearance.layers[0];
+  float base_extent = border_appearance_extent(settings, border->focused);
+  float effective_extent = border->animating
+                           && (border->anim_mode & ANIM_PULSE)
+                           ? border->anim_stroke_width
+                           : base_extent;
+  float effective_border_width = effective_extent;
   if (border->animating && (border->anim_mode & ANIM_FADE)) {
     CGContextSetAlpha(border->context, border->anim_alpha);
   }
 
   CGGradientRef gradient = NULL;
   CGPoint gradient_dir[2];
-  if (color_style.stype == COLOR_STYLE_SOLID) {
+  if (!is_double && color_style.stype == COLOR_STYLE_SOLID) {
     drawing_set_stroke_and_fill(border->context, color_style.color, color_style.glow);
     if (color_style.glow && border->animating && (border->anim_mode & ANIM_RAMP)) {
       float a, r, g, b;
@@ -314,7 +395,7 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                                   glow_color);
       CGColorRelease(glow_color);
     }
-  } else if (color_style.stype == COLOR_STYLE_GRADIENT) {
+  } else if (!is_double && color_style.stype == COLOR_STYLE_GRADIENT) {
     uint32_t fallback_color = color_style.gradient.color1;
     CGAffineTransform trans = CGAffineTransformMakeScale(frame.size.width,
                                                          frame.size.height);
@@ -331,14 +412,16 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
     }
   }
 
-  CGContextSetLineWidth(border->context, effective_border_width);
+  if (!is_double) {
+    CGContextSetLineWidth(border->context, effective_border_width);
+  }
   CGContextClearRect(border->context, frame);
 
   CGRect path_rect = border->drawing_bounds;
   CGMutablePathRef inner_clip_path = CGPathCreateMutable();
   bool square_thick_above = settings->border_style == BORDER_STYLE_SQUARE
                             && settings->border_order == BORDER_ORDER_ABOVE
-                            && settings->border_width >= BORDER_TSMW;
+                            && border_max_extent(settings) >= BORDER_TSMW;
   if (square_thick_above) {
     // Inset the frame to overlap the rounding of macOS windows to create a
     // truly square border
@@ -362,14 +445,42 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                         ? 9.0
                         : border->radius;
 
-  if (settings->border_style == BORDER_STYLE_ROUND_UNIFORM) {
+  if (settings->border_style == BORDER_STYLE_ROUND_UNIFORM && !is_double) {
     drawing_draw_rounded_rect_with_inset(border->context,
                                          path_rect,
                                          corner_radius,
                                          true            );
   }
 
-  if (color_style.stype == COLOR_STYLE_SOLID) {
+  if (is_double) {
+    float base_width = settings->border_width + settings->inner_border_width;
+    float animated_width = fmaxf(effective_extent
+                                 - settings->double_border_gap,
+                                 0.0f);
+    float width_scale = base_width > 0.0f ? animated_width / base_width : 1.0f;
+    float outer_width = settings->border_width * width_scale;
+    float inner_width = settings->inner_border_width * width_scale;
+    float inner_center = inner_width / 2.0f;
+    float outer_center = inner_width
+                         + settings->double_border_gap
+                         + outer_width / 2.0f;
+    border_draw_double_layer(border,
+                             &appearance.layers[0],
+                             frame,
+                             path_rect,
+                             outer_center,
+                             outer_width,
+                             corner_radius,
+                             square);
+    border_draw_double_layer(border,
+                             &appearance.layers[1],
+                             frame,
+                             path_rect,
+                             inner_center,
+                             inner_width,
+                             corner_radius,
+                             square);
+  } else if (color_style.stype == COLOR_STYLE_SOLID) {
     if (square) {
       drawing_draw_square_with_inset(border->context,
                                      path_rect,
@@ -651,13 +762,14 @@ void border_move(struct border* border) {
   }
 
   struct settings* settings = border_get_settings(border);
+  float border_extent = border_max_extent(settings);
   CGRect window_frame;
   SLSGetWindowBounds(border->cid, border->target_wid, &window_frame);
   CGPoint origin = { .x = window_frame.origin.x
-                          - settings->border_width
+                          - border_extent
                           - BORDER_PADDING,
                      .y = window_frame.origin.y
-                          - settings->border_width
+                          - border_extent
                           - BORDER_PADDING          };
 
   CFTypeRef transaction = SLSTransactionCreate(border->cid);
@@ -728,10 +840,12 @@ void border_update_animating(struct border* border, float progress) {
                                                    slide_progress);
   }
   if (border->animating && (border->anim_mode & ANIM_PULSE)) {
-    border->anim_stroke_width = animation_pulse_width(settings->border_width,
-                                                      progress);
+    border->anim_stroke_width = animation_pulse_width(
+        border_appearance_extent(settings, border->focused),
+        progress);
   } else {
-    border->anim_stroke_width = settings->border_width;
+    border->anim_stroke_width = border_appearance_extent(settings,
+                                                         border->focused);
   }
   border_update_internal(border, settings);
   pthread_mutex_unlock(&border->mutex);

@@ -73,6 +73,7 @@ int main(void) {
   g_settings.animation = ANIM_FADE | ANIM_RAMP | ANIM_SLIDE | ANIM_PULSE;
   g_settings.animation_duration = 0.25f;
   g_settings.border_width = 5.0f;
+  g_settings.inner_border_width = 5.0f;
 
   assert(windows_window_focus_with_mouse_state(&windows, new_key, false));
   assert(!old_border.focused);
@@ -154,6 +155,7 @@ int main(void) {
   new_border.setting_override.animation = ANIM_SLIDE;
   new_border.setting_override.animation_duration = 0.75f;
   new_border.setting_override.border_width = 2.0f;
+  new_border.setting_override.inner_border_width = 2.0f;
   assert(windows_window_focus_with_mouse_state(&stale_windows, new_key, false));
   assert(new_border.anim_mode == ANIM_SLIDE);
   assert(new_border.anim_duration == 0.75f);

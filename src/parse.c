@@ -71,47 +71,102 @@ static bool parse_solid(struct color_style* style,
   return true;
 }
 
-static bool parse_color(struct color_style* style, const char* token) {
+static bool parse_color_style(struct color_style* style, const char* token) {
   if (parse_gradient(style,
                      token,
-                     "=glow(gradient(top_left=0x%x,bottom_right=0x%x))%n",
+                     "glow(gradient(top_left=0x%x,bottom_right=0x%x))%n",
                      TL_TO_BR,
                      true)
       || parse_gradient(style,
                         token,
-                        "=glow(gradient(top_right=0x%x,bottom_left=0x%x))%n",
+                        "glow(gradient(top_right=0x%x,bottom_left=0x%x))%n",
                         TR_TO_BL,
                         true)
       || parse_gradient(style,
                         token,
-                        "=gradient(top_left=0x%x,bottom_right=0x%x)%n",
+                        "gradient(top_left=0x%x,bottom_right=0x%x)%n",
                         TL_TO_BR,
                         false)
       || parse_gradient(style,
                         token,
-                        "=gradient(top_right=0x%x,bottom_left=0x%x)%n",
+                        "gradient(top_right=0x%x,bottom_left=0x%x)%n",
                         TR_TO_BL,
                         false)
-      || parse_solid(style, token, "=glow(0x%x)%n", true)
-      || parse_solid(style, token, "=0x%x%n", false)) {
+      || parse_solid(style, token, "glow(0x%x)%n", true)
+      || parse_solid(style, token, "0x%x%n", false)) {
+    return true;
+  }
+
+  return false;
+}
+
+static bool parse_color_style_span(struct color_style* style,
+                                   const char* start,
+                                   const char* end) {
+  if (!start || !end || end <= start) return false;
+  size_t length = (size_t)(end - start);
+  char token[length + 1];
+  memcpy(token, start, length);
+  token[length] = '\0';
+  return parse_color_style(style, token);
+}
+
+static const char* find_double_separator(const char* start, const char* end) {
+  int depth = 0;
+  for (const char* cursor = start; cursor < end; ++cursor) {
+    if (*cursor == '(') {
+      depth++;
+    } else if (*cursor == ')') {
+      if (depth == 0) return NULL;
+      depth--;
+    } else if (*cursor == ',' && depth == 0) {
+      return cursor;
+    }
+  }
+  return NULL;
+}
+
+static bool parse_color(struct border_appearance* appearance,
+                        const char* token) {
+  if (!token || token[0] != '=') return false;
+
+  const char* value = token + 1;
+  const char* end = value + strlen(value);
+  struct border_appearance parsed = {};
+  if (strncmp(value, "double(", strlen("double(")) == 0
+      && end > value
+      && end[-1] == ')') {
+    const char* outer_start = value + strlen("double(");
+    const char* inner_end = end - 1;
+    const char* separator = find_double_separator(outer_start, inner_end);
+    if (separator
+        && parse_color_style_span(&parsed.layers[0], outer_start, separator)
+        && parse_color_style_span(&parsed.layers[1], separator + 1, inner_end)) {
+      parsed.layer_count = 2;
+      *appearance = parsed;
+      return true;
+    }
+  } else if (parse_color_style_span(&parsed.layers[0], value, end)) {
+    parsed.layer_count = 1;
+    *appearance = parsed;
     return true;
   }
 
   printf("[?] Borders: Invalid color argument color%s\n", token);
-
   return false;
 }
 
 static bool parse_background_color(struct color_style* background,
                                    const char* token,
                                    const char* name) {
-  struct color_style parsed;
-  if (!parse_color(&parsed, token)) return false;
-  if (parsed.stype == COLOR_STYLE_GRADIENT) {
-    printf("[?] Borders: %s does not support gradients\n", name);
+  struct border_appearance appearance;
+  if (!parse_color(&appearance, token)) return false;
+  if (appearance.layer_count != 1
+      || appearance.layers[0].stype != COLOR_STYLE_SOLID) {
+    printf("[?] Borders: %s only supports a single solid color\n", name);
     return false;
   }
-  *background = parsed;
+  *background = appearance.layers[0];
   return true;
 }
 
@@ -132,6 +187,51 @@ static bool parse_blur_radius(float* result,
     blur_radius = 50.0f;
   }
   *result = blur_radius;
+  return true;
+}
+
+static bool parse_non_negative_float(float* result,
+                                     const char* token,
+                                     const char* name) {
+  float value;
+  int consumed = 0;
+  if (sscanf(token, "%f%n", &value, &consumed) != 1
+      || consumed != (int)strlen(token)
+      || !isfinite(value)
+      || value < 0.0f) {
+    printf("[?] Borders: %s must be finite and non-negative\n", name);
+    return false;
+  }
+  *result = value;
+  return true;
+}
+
+static bool parse_widths(struct settings* settings, const char* token) {
+  float outer;
+  float inner;
+  int consumed = 0;
+  if (sscanf(token, "double(%f,%f)%n", &outer, &inner, &consumed) == 2
+      && consumed == (int)strlen(token)) {
+    if (!isfinite(outer) || !isfinite(inner) || outer <= 0.0f || inner <= 0.0f) {
+      printf("[?] Borders: double border widths must be finite and greater than zero\n");
+      return false;
+    }
+    settings->border_width = outer;
+    settings->inner_border_width = inner;
+    return true;
+  }
+
+  float width;
+  consumed = 0;
+  if (sscanf(token, "%f%n", &width, &consumed) != 1
+      || consumed != (int)strlen(token)
+      || !isfinite(width)
+      || width <= 0.0f) {
+    printf("[?] Borders: width must be finite and greater than zero\n");
+    return false;
+  }
+  settings->border_width = width;
+  settings->inner_border_width = width;
   return true;
 }
 
@@ -194,8 +294,17 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
                                                + strlen(whitelist));
       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
     }
-    else if (sscanf(arguments[i], "width=%f", &settings->border_width) == 1) {
-      update_mask |= BORDER_UPDATE_MASK_ALL;
+    else if (str_starts_with(arguments[i], "width=")) {
+      if (parse_widths(settings, arguments[i] + strlen("width="))) {
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+      }
+    }
+    else if (str_starts_with(arguments[i], "double_gap=")) {
+      if (parse_non_negative_float(&settings->double_border_gap,
+                                   arguments[i] + strlen("double_gap="),
+                                   "double_gap")) {
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+      }
     }
     else if (sscanf(arguments[i], "order=%c", &order) == 1) {
       if (order == 'a') settings->border_order = BORDER_ORDER_ABOVE;

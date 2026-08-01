@@ -233,8 +233,8 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
       if (old_bounds_error == kCGErrorSuccess
           && new_bounds_error == kCGErrorSuccess) {
         struct settings* old_settings = border_get_settings(old_focus);
-        float old_offset = -old_settings->border_width - BORDER_PADDING;
-        float new_offset = -new_settings->border_width - BORDER_PADDING;
+        float old_offset = -border_max_extent(old_settings) - BORDER_PADDING;
+        float new_offset = -border_max_extent(new_settings) - BORDER_PADDING;
         old_bounds = CGRectInset(old_bounds, old_offset, old_offset);
         new_bounds = CGRectInset(new_bounds, new_offset, new_offset);
         new_focus->anim_start_origin = old_bounds.origin;

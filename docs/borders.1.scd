@@ -19,6 +19,8 @@ API, thereby being faster than comparable tools.
 
 *style=<style>*
 	Specifies the style of the border (either _round_ or _square_)
+	For adaptive round borders, windows reporting a corner radius of _0_ or _1_
+	remain completely square across both double-border layers.
 
 *animation=<modes>*
 	Specifies one or more animation modes for the focused window
@@ -45,7 +47,10 @@ API, thereby being faster than comparable tools.
 
 *active_color=<color>*
 	Sets the border color for the focused window (format: _0xAARRGGBB_). For
-	instance, active_color=0xff00ff00 creates a green border.
+	instance, active_color=0xff00ff00 creates a green border. Use
+	_double(<color>,<color>)_ to draw independently styled outer and inner
+	borders. Each nested color accepts the complete color syntax described
+	below.
 
 *inactive_color=<color>*
 	Sets the border color for all windows not in focus.
@@ -78,7 +83,13 @@ API, thereby being faster than comparable tools.
 
 *width=<float>*
 	Determines the width of the border. For example, width=5.0 creates a border
-	5.0 points wide.
+	5.0 points wide. For double colors, _width=double(4.0,2.0)_ configures the
+	outer and inner widths respectively. A scalar width applies to both layers;
+	for a single color, only the first double width is used.
+
+*double_gap=<float>*
+	Sets the transparent gap between double-border layers. The value must be
+	finite and non-negative. The default is _0_.
 
 *hidpi=<boolean>*
 	If set to _on_, the border will be drawn with retina resolution.
@@ -122,12 +133,18 @@ could be issued.
 	constituents take a base 16 number, i.e. _0-F_.
 
 	The color argument can take the special values: ++
+	_double(<color>,<color>)_ ++
 	_gradient(top_left=0xAARRGGBB,bottom_right=0xAARRGGBB)_ ++
 	_gradient(top_right=0xAARRGGBB,bottom_left=0xAARRGGBB)_ ++
 	_glow(0xAARRGGBB)_ ++
 	_glow(gradient(top_left=0xAARRGGBB,bottom_right=0xAARRGGBB))_ ++
 	_glow(gradient(top_right=0xAARRGGBB,bottom_left=0xAARRGGBB))_ ++
 (You might need to quote these arguments depending on your shell)
+	The first double color is the outer border and the second is the inner
+	border. Each can independently be a solid color, glow, gradient, or glowing
+	gradient. For example: ++
+	_double(glow(gradient(top_left=0xffff0000,bottom_right=0xff0000ff)),glow(0xffffffff))_ ++
+	Wrap each nested color independently; _glow(double(...))_ is not supported.
 
 	The glow color for a gradient is the alpha-weighted blend of its two
 	endpoint colors.

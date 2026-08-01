@@ -36,18 +36,25 @@ struct color_style {
   };
 };
 
+struct border_appearance {
+  uint32_t layer_count;
+  struct color_style layers[2];
+};
+
 struct settings {
   bool enabled;
   uint32_t apply_to;
 
-  struct color_style active_window;
-  struct color_style inactive_window;
+  struct border_appearance active_window;
+  struct border_appearance inactive_window;
   struct color_style corner_mask;
   struct color_style background;
   struct color_style active_background;
   struct color_style inactive_background;
 
   float border_width;
+  float inner_border_width;
+  float double_border_gap;
   float blur_radius;
   float active_blur_radius;
   float inactive_blur_radius;
@@ -69,6 +76,27 @@ struct settings {
   bool whitelist_enabled;
   struct table whitelist;
 };
+
+static inline float border_appearance_extent(const struct settings* settings,
+                                             bool focused) {
+  const struct border_appearance* appearance = focused
+                                               ? &settings->active_window
+                                               : &settings->inactive_window;
+  if (appearance->layer_count < 2) return settings->border_width;
+  return settings->border_width
+         + settings->inner_border_width
+         + settings->double_border_gap;
+}
+
+static inline float border_max_extent(const struct settings* settings) {
+  return fmaxf(border_appearance_extent(settings, true),
+               border_appearance_extent(settings, false));
+}
+
+static inline float border_layer_corner_radius(float base_radius,
+                                               float center_offset) {
+  return base_radius <= 0.0f ? 0.0f : base_radius + center_offset;
+}
 
 enum border_background_host {
   BORDER_BACKGROUND_NONE,

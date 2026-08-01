@@ -48,6 +48,36 @@ You can either configure the appearance directly when starting the borders
 process (as shown in "Bootstrap with yabai") or use a configuration file.
 The appearance can be adapted at any point in time.
 
+#### Drawing double borders
+
+Use `double(outer,inner)` for focused and unfocused colors, and for the two
+border widths:
+
+```bash
+borders \
+  'active_color=double(glow(gradient(top_left=0xffff2d55,bottom_right=0xffffcc00)),glow(0xffffffff))' \
+  'inactive_color=double(gradient(top_right=0xff2c2c2e,bottom_left=0xff636366),0xff8e8e93)' \
+  'width=double(4.0,2.0)' \
+  double_gap=1.0
+```
+
+The first value configures the outer border and the second configures the inner
+border. `double_gap` adds transparent space between them and defaults to `0`.
+A scalar `width` gives both layers the same width; when a color is not a
+`double(...)`, only the first width is used. Each item inside `double(...)` is
+an independent color style and accepts a solid color, `glow(...)`,
+`gradient(...)`, or `glow(gradient(...))`. Wrap each layer separately; forms
+such as `glow(double(...))` are not used.
+
+Double borders support the existing `style`, `order`, `hidpi`, per-window
+`apply-to`, background/blur, and all focus-animation options. During `pulse`,
+both layers scale together while preserving the configured gap. During `ramp`,
+each layer configured with glow ramps independently.
+
+With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
+keep completely square corners across both layers. Double borders on normally
+rounded windows remain concentric with the detected window radius.
+
 #### Animating focus changes
 Focus animations are disabled by default. Enable one or more modes with a
 comma-separated `animation=` value:
