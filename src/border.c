@@ -4,6 +4,7 @@
 #include "windows.h"
 #include <pthread.h>
 #include <time.h>
+#include <QuartzCore/QuartzCore.h>
 
 extern struct settings g_settings;
 
@@ -102,6 +103,12 @@ static void border_draw_gradient_glow(CGContextRef context,
 
 static void border_draw(struct border* border, CGRect frame, struct settings* settings) {
   CGContextSaveGState(border->context);
+  if (border->animating && (border->anim_mode & ANIM_FADE)) {
+    float alpha = border->focused
+                  ? border->anim_alpha
+                  : (1.0f - border->anim_alpha);
+    CGContextSetAlpha(border->context, alpha);
+  }
   border->needs_redraw = false;
   struct color_style color_style = border->focused
                                    ? settings->active_window
@@ -119,7 +126,9 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                                        gradient_dir          );
   }
 
-  CGContextSetLineWidth(border->context, settings->border_width);
+  CGContextSetLineWidth(border->context,
+       (border->animating && (border->anim_mode & ANIM_PULSE))
+           ? border->anim_stroke_width : settings->border_width);
   CGContextClearRect(border->context, frame);
 
   CGRect path_rect = border->drawing_bounds;
@@ -171,6 +180,9 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
   } else if (color_style.stype == COLOR_STYLE_GRADIENT) {
     if (color_style.glow) {
       float blur_radius = square_thick_above ? BORDER_TSMN : 10.0f;
+      if (border->animating && (border->anim_mode & ANIM_RAMP)) {
+        blur_radius *= border->anim_alpha;
+      }
       border_draw_gradient_glow(border->context,
                                 &color_style.gradient,
                                 path_rect,
@@ -236,6 +248,14 @@ void border_update_internal(struct border* border, struct settings* settings) {
   int cid = border->cid;
   CGRect frame;
   if (!border_calculate_bounds(border, &frame, settings)) return;
+
+  if (border->anim_frame_override) {
+    frame = border->anim_current_frame;
+    border->frame = frame;
+    border->origin = frame.origin;
+    border->drawing_bounds = frame;
+    frame.origin = CGPointZero;
+  }
 
   uint64_t tags = window_tags(cid, border->target_wid);
   border->sticky = tags & WINDOW_TAG_STICKY;
@@ -435,6 +455,33 @@ void border_hide(struct border* border) {
   pthread_mutex_unlock(&border->mutex);
 }
 
+void border_update_animating(struct border* border, float progress) {
+   border->needs_redraw = true;
+   struct settings* settings = border_get_settings(border);
+   if (border->anim_frame_override) {
+     border->anim_current_frame.origin.x = border->anim_start_frame.origin.x
+         + progress * (border->anim_end_frame.origin.x - border->anim_start_frame.origin.x);
+     border->anim_current_frame.origin.y = border->anim_start_frame.origin.y
+         + progress * (border->anim_end_frame.origin.y - border->anim_start_frame.origin.y);
+     border->anim_current_frame.size = CGSizeMake(
+         border->anim_start_frame.size.width
+             + progress * (border->anim_end_frame.size.width - border->anim_start_frame.size.width),
+         border->anim_start_frame.size.height
+             + progress * (border->anim_end_frame.size.height - border->anim_start_frame.size.height));
+   }
+    if (border->animating && (border->anim_mode & ANIM_PULSE)) {
+      float pulse;
+      if (progress < 0.5f) {
+        pulse = 1.0f + progress; // 1.0 to 1.5
+      } else {
+        pulse = 2.0f - progress; // 1.5 to 1.0
+      }
+      border->anim_stroke_width = pulse * settings->border_width;
+    } else {
+      border->anim_stroke_width = settings->border_width;
+    }
+   border_update_internal(border, settings);
+}
 void border_unhide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
   if (border->too_small

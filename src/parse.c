@@ -149,19 +149,50 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
     else if (sscanf(arguments[i], "order=%c", &order) == 1) {
       if (order == 'a') settings->border_order = BORDER_ORDER_ABOVE;
       else settings->border_order = BORDER_ORDER_BELOW;
-      update_mask |= BORDER_UPDATE_MASK_ALL;
-    }
-    else if (sscanf(arguments[i], "style=%c", &settings->border_style) == 1) {
-      update_mask |= BORDER_UPDATE_MASK_ALL;
-    }
-    else if (strcmp(arguments[i], "hidpi=on") == 0) {
-      update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
-      settings->hidpi = true;
-    }
-    else if (strcmp(arguments[i], "hidpi=off") == 0) {
-      update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
-      settings->hidpi = false;
-    }
+       update_mask |= BORDER_UPDATE_MASK_ALL;
+     }
+     else if (sscanf(arguments[i], "style=%c", &settings->border_style) == 1) {
+       update_mask |= BORDER_UPDATE_MASK_ALL;
+     }
+     else if (strncmp(arguments[i], "animation=", strlen("animation=")) == 0) {
+       char *value = arguments[i] + strlen("animation=");
+       int anim = 0;
+       char *saveptr = NULL;
+       char *token = strtok_r(value, ",", &saveptr);
+       while (token) {
+         if (strcmp(token, "none") == 0) {
+           /* none = 0, no bits set */
+         } else if (strcmp(token, "fade") == 0) {
+           anim |= ANIM_FADE;
+         } else if (strcmp(token, "ramp") == 0) {
+           anim |= ANIM_RAMP;
+         } else if (strcmp(token, "slide") == 0) {
+           anim |= ANIM_SLIDE;
+         } else if (strcmp(token, "pulse") == 0) {
+           anim |= ANIM_PULSE;
+          } else {
+           printf("[?] Borders: Invalid animation value '%s'\n", token);
+           anim = -1;
+           break;
+         }
+         token = strtok_r(NULL, ",", &saveptr);
+       }
+       if (anim >= 0) {
+         settings->animation = anim;
+         update_mask |= BORDER_UPDATE_MASK_ANIMATION;
+       }
+     }
+     else if (sscanf(arguments[i], "animation_duration=%f", &settings->animation_duration) == 1) {
+       update_mask |= BORDER_UPDATE_MASK_ANIMATION;
+     }
+     else if (strcmp(arguments[i], "hidpi=on") == 0) {
+       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
+       settings->hidpi = true;
+     }
+     else if (strcmp(arguments[i], "hidpi=off") == 0) {
+       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
+       settings->hidpi = false;
+     }
     else if (strcmp(arguments[i], "ax_focus=on") == 0) {
       settings->ax_focus = true;
       update_mask |= BORDER_UPDATE_MASK_SETTING;

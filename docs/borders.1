@@ -29,6 +29,17 @@ API, thereby being faster than comparable tools.\&
 Specifies the style of the border (either \fIround\fR or \fIsquare\fR)
 .PP
 .RE
+\fBanimation=<modes>\fR
+.RS 4
+Specifies one or more animation modes for the focused window
+border, separated by commas.\& Available modes: \fInone\fR (no
+animation), \fIfade\fR (opacity cross\-fade), \fIramp\fR (glow blur
+grows from zero to full), \fIslide\fR (border slides from old
+window position), \fIpulse\fR (breathing effect where border
+width pulses).\& Multiple modes can be combined, e.\&g.\&
+animation=fade,ramp or animation=slide,pulse.\&
+.PP
+.RE
 \fBactive_color=<color>\fR
 .RS 4
 Sets the border color for the focused window (format: \fI0xAARRGGBB\fR).\& For

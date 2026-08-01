@@ -14,6 +14,11 @@
 #define BORDER_PADDING 8.0
 #define BORDER_TSMN 3.27f
 
+#define ANIM_FADE   (1 << 0)
+#define ANIM_RAMP   (1 << 1)
+#define ANIM_SLIDE  (1 << 2)
+#define ANIM_PULSE  (1 << 3)
+
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
 #define BORDER_TSMW 52.f
 #else
@@ -38,15 +43,17 @@ struct settings {
   struct color_style corner_mask;
   struct color_style background;
 
-  float border_width;
-  float blur_radius;
-  char border_style;
-  bool hidpi;
-  bool show_background;
-  int border_order;
-  bool ax_focus;
+float border_width;
+   float blur_radius;
+   char border_style;
+   bool hidpi;
+   bool show_background;
+   int border_order;
+   bool ax_focus;
+   int animation;
+   float animation_duration;
 
-  bool blacklist_enabled;
+   bool blacklist_enabled;
   struct table blacklist;
 
   bool whitelist_enabled;
@@ -83,6 +90,17 @@ struct border {
 
   struct animation animation;
   struct event_buffer event_buffer;
+  bool animating;
+  int anim_mode;
+  CFTimeInterval anim_start;
+  struct color_style anim_start_style;
+  struct color_style anim_end_style;
+  CGRect anim_start_frame;
+  CGRect anim_end_frame;
+  bool anim_frame_override;
+  CGRect anim_current_frame;
+  float anim_alpha;
+  float anim_stroke_width;
 
   bool is_proxy;
   struct border* proxy;
@@ -96,6 +114,7 @@ void border_destroy(struct border* border);
 
 void border_move(struct border* border);
 void border_update(struct border* border, bool try_async);
+void border_update_animating(struct border* border, float progress);
 void border_hide(struct border* border);
 void border_unhide(struct border* border);
 

@@ -2,11 +2,13 @@
 #include "hashtable.h"
 #include "border.h"
 #include "misc/ax.h"
+#include <QuartzCore/QuartzCore.h>
 #include <string.h>
 #include <libproc.h>
 
 extern pid_t g_pid;
 extern struct settings g_settings;
+extern float g_animation_duration;
 
 // Loaded via dlsym in main.c
 extern CFArrayRef (*JBSLSWindowIteratorGetCornerRadii)(CFTypeRef);
@@ -165,6 +167,52 @@ void windows_window_update(struct table* windows, uint32_t wid) {
 }
 
 static bool windows_window_focus(struct table* windows, uint32_t wid) {
+  struct border* old_focus = NULL;
+  struct border* new_focus = NULL;
+
+  for (int i = 0; i < windows->capacity; ++i) {
+    struct bucket* bucket = windows->buckets[i];
+    while (bucket) {
+      if (bucket->value) {
+        struct border* border = bucket->value;
+        if (border->focused) old_focus = border;
+        if (border->target_wid == wid && !border->focused) new_focus = border;
+      }
+      bucket = bucket->next;
+    }
+  }
+
+  if (g_settings.animation != 0 && old_focus && new_focus) {
+    old_focus->animating = true;
+    old_focus->anim_mode = g_settings.animation;
+    old_focus->anim_start = CACurrentMediaTime();
+    old_focus->anim_alpha = 0.0f;
+    old_focus->anim_start_style = g_settings.active_window;
+    old_focus->anim_end_style = g_settings.inactive_window;
+
+    new_focus->animating = true;
+    new_focus->anim_mode = g_settings.animation;
+    new_focus->anim_start = CACurrentMediaTime();
+    new_focus->anim_alpha = 0.0f;
+    new_focus->anim_start_style = g_settings.inactive_window;
+    new_focus->anim_end_style = g_settings.active_window;
+
+    if (g_settings.animation & ANIM_SLIDE) {
+      old_focus->anim_frame_override = true;
+      old_focus->anim_start_frame = old_focus->frame;
+
+      CGRect new_bounds;
+      SLSGetWindowBounds(new_focus->cid, new_focus->target_wid, &new_bounds);
+      float border_offset = -g_settings.border_width - BORDER_PADDING;
+      new_focus->anim_end_frame = CGRectInset(new_bounds, border_offset, border_offset);
+    }
+
+    old_focus->needs_redraw = true;
+    new_focus->needs_redraw = true;
+    animation_start_ticker();
+    return true;
+  }
+
   bool found_window = false;
   for (int i = 0; i < windows->capacity; ++i) {
     struct bucket* bucket = windows->buckets[i];

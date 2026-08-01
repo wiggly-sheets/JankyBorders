@@ -8,6 +8,7 @@
 #include "misc/connection.h"
 #include "misc/ax.h"
 #include "misc/yabai.h"
+#include "animation.h"
 #include <stdio.h>
 #include <dlfcn.h>
 
@@ -41,8 +42,10 @@ struct settings g_settings = { .enabled = true,
                                .hidpi = false,
                                .show_background = false,
                                .border_order = BORDER_ORDER_BELOW,
-                               .ax_focus = false,
-                               .blacklist_enabled = false,
+.ax_focus = false,
+    .animation = 0,
+    .animation_duration = 0.25f,
+    .blacklist_enabled = false,
                                .whitelist_enabled = false                    };
 
 static TABLE_HASH_FUNC(hash_windows) {
@@ -88,6 +91,7 @@ static void message_handler(void* data, uint32_t len) {
     return;
   } else {
     g_settings = settings;
+    g_animation_duration = settings.animation_duration;
     for (int i = 0; i < g_windows.capacity; ++i) {
       struct bucket* bucket = g_windows.buckets[i];
       while (bucket) {
@@ -116,16 +120,18 @@ static void message_handler(void* data, uint32_t len) {
     }
   }
 
-  if (update_mask & BORDER_UPDATE_MASK_RECREATE_ALL) {
-    windows_recreate_all_borders(&g_windows);
-  } else if (update_mask & BORDER_UPDATE_MASK_ALL) {
-    windows_update_all(&g_windows);
-  } else if (update_mask & BORDER_UPDATE_MASK_ACTIVE) {
-    windows_update_active(&g_windows);
-  } else if (update_mask & BORDER_UPDATE_MASK_INACTIVE) {
-    windows_update_inactive(&g_windows);
+    if (update_mask & BORDER_UPDATE_MASK_RECREATE_ALL) {
+      windows_recreate_all_borders(&g_windows);
+    } else if (update_mask & BORDER_UPDATE_MASK_ALL) {
+      windows_update_all(&g_windows);
+    } else if (update_mask & BORDER_UPDATE_MASK_ACTIVE) {
+      windows_update_active(&g_windows);
+    } else if (update_mask & BORDER_UPDATE_MASK_INACTIVE) {
+      windows_update_inactive(&g_windows);
+    } else if (update_mask & BORDER_UPDATE_MASK_ANIMATION) {
+      g_animation_duration = settings.animation_duration;
+    }
   }
-}
 
 static void send_args_to_server(mach_port_t port, int argc, char** argv) {
   int message_length = argc;

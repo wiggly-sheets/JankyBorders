@@ -20,6 +20,15 @@ API, thereby being faster than comparable tools.
 *style=<style>*
 	Specifies the style of the border (either _round_ or _square_)
 
+*animation=<modes>*
+	Specifies one or more animation modes for the focused window
+	border, separated by commas. Available modes: _none_ (no
+	animation), _fade_ (opacity cross-fade), _ramp_ (glow blur
+	grows from zero to full), _slide_ (border slides from old
+	window position), _pulse_ (breathing effect where border
+	width pulses). Multiple modes can be combined, e.g.
+	animation=fade,ramp or animation=slide,pulse.
+
 *active_color=<color>*
 	Sets the border color for the focused window (format: _0xAARRGGBB_). For
 	instance, active_color=0xff00ff00 creates a green border.
