@@ -41,6 +41,13 @@ struct border_appearance {
   struct color_style layers[2];
 };
 
+enum border_background_mode {
+  BORDER_BACKGROUND_AUTO,
+  BORDER_BACKGROUND_FORCE_BORDER,
+  BORDER_BACKGROUND_FORCE_COMPANION,
+};
+};
+
 struct settings {
   bool enabled;
   uint32_t apply_to;
@@ -64,6 +71,7 @@ struct settings {
   bool inactive_background_override;
   bool active_blur_override;
   bool inactive_blur_override;
+  enum border_background_mode background_mode;
   int border_order;
   bool ax_focus;
   int animation;
@@ -137,6 +145,12 @@ static inline enum border_background_host border_background_host(
   if (!border_background_visible(settings, focused)
       && border_background_blur_radius(settings, focused) <= 0.0f) {
     return BORDER_BACKGROUND_NONE;
+  }
+  if (settings->background_mode == BORDER_BACKGROUND_FORCE_BORDER) {
+    return BORDER_BACKGROUND_BORDER;
+  }
+  if (settings->background_mode == BORDER_BACKGROUND_FORCE_COMPANION) {
+    return BORDER_BACKGROUND_COMPANION;
   }
   return settings->border_order == BORDER_ORDER_ABOVE
          ? BORDER_BACKGROUND_COMPANION

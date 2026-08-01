@@ -311,6 +311,20 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       else settings->border_order = BORDER_ORDER_BELOW;
       update_mask |= BORDER_UPDATE_MASK_ALL;
     }
+    else if (str_starts_with(arguments[i], "background_host=")) {
+      const char* host = arguments[i] + strlen("background_host=");
+      if (strcmp(host, "auto") == 0) {
+        settings->background_mode = BORDER_BACKGROUND_AUTO;
+      } else if (strcmp(host, "border") == 0) {
+        settings->background_mode = BORDER_BACKGROUND_FORCE_BORDER;
+      } else if (strcmp(host, "companion") == 0) {
+        settings->background_mode = BORDER_BACKGROUND_FORCE_COMPANION;
+      } else {
+        printf("[?] Borders: Invalid background host '%s'\n", host);
+        continue;
+      }
+      update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
     else if (sscanf(arguments[i], "style=%c", &settings->border_style) == 1) {
       update_mask |= BORDER_UPDATE_MASK_ALL;
     }
