@@ -29,28 +29,57 @@ static bool parse_list(struct table* list, char* token) {
 }
 
 static bool parse_color(struct color_style* style, char* token) {
-  if (sscanf(token, "=0x%x", &style->color) == 1) {
-    style->stype = COLOR_STYLE_SOLID;
-    return true;
-  }
-  else if (sscanf(token, "=glow(0x%x)", &style->color) == 1) {
-    style->stype = COLOR_STYLE_GLOW;
-    return true;
-  }
-  else if (sscanf(token,
-             "=gradient(top_left=0x%x,bottom_right=0x%x)",
-             &style->gradient.color1,
-             &style->gradient.color2) == 2) {
+  int consumed = 0;
+  if (sscanf(token,
+         "=glow(gradient(top_left=0x%x,bottom_right=0x%x))%n",
+         &style->gradient.color1,
+         &style->gradient.color2,
+         &consumed) >= 2 && consumed == (int)strlen(token)) {
     style->stype = COLOR_STYLE_GRADIENT;
+    style->glow = true;
     style->gradient.direction = TL_TO_BR;
     return true;
   }
   else if (sscanf(token,
-             "=gradient(top_right=0x%x,bottom_left=0x%x)",
-             &style->gradient.color1,
-             &style->gradient.color2) == 2) {
+              "=glow(gradient(top_right=0x%x,bottom_left=0x%x))%n",
+              &style->gradient.color1,
+              &style->gradient.color2,
+              &consumed) >= 2 && consumed == (int)strlen(token)) {
     style->stype = COLOR_STYLE_GRADIENT;
+    style->glow = true;
     style->gradient.direction = TR_TO_BL;
+    return true;
+  }
+  else if (sscanf(token,
+             "=gradient(top_left=0x%x,bottom_right=0x%x)%n",
+             &style->gradient.color1,
+             &style->gradient.color2,
+             &consumed) >= 2 && consumed == (int)strlen(token)) {
+    style->stype = COLOR_STYLE_GRADIENT;
+    style->glow = false;
+    style->gradient.direction = TL_TO_BR;
+    return true;
+  }
+  else if (sscanf(token,
+             "=gradient(top_right=0x%x,bottom_left=0x%x)%n",
+             &style->gradient.color1,
+             &style->gradient.color2,
+             &consumed) >= 2 && consumed == (int)strlen(token)) {
+    style->stype = COLOR_STYLE_GRADIENT;
+    style->glow = false;
+    style->gradient.direction = TR_TO_BL;
+    return true;
+  }
+  else if (sscanf(token, "=glow(0x%x)%n", &style->color, &consumed) >= 1
+           && consumed == (int)strlen(token)) {
+    style->stype = COLOR_STYLE_SOLID;
+    style->glow = true;
+    return true;
+  }
+  else if (sscanf(token, "=0x%x%n", &style->color, &consumed) >= 1
+           && consumed == (int)strlen(token)) {
+    style->stype = COLOR_STYLE_SOLID;
+    style->glow = false;
     return true;
   }
   else printf("[?] Borders: Invalid color argument color%s\n", token);
@@ -81,10 +110,15 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       }
     }
     else if (str_starts_with(arguments[i], background_color)) {
-      if (parse_color(&settings->background,
-                                 arguments[i] + strlen(background_color))) {
-        update_mask |= BORDER_UPDATE_MASK_ALL;
-        settings->show_background = settings->background.color & 0xff000000;
+      struct color_style bg;
+      if (parse_color(&bg, arguments[i] + strlen(background_color))) {
+        if (bg.stype == COLOR_STYLE_GRADIENT) {
+          printf("[?] Borders: background_color does not support gradients\n");
+        } else {
+          settings->background = bg;
+          update_mask |= BORDER_UPDATE_MASK_ALL;
+          settings->show_background = settings->background.color & 0xff000000;
+        }
       }
     }
     else if (str_starts_with(arguments[i], blacklist)) {
