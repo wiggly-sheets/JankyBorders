@@ -62,21 +62,22 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
             window_created = true;
           }
 
-          int32_t radius = 0;
+          int32_t detected_radius = BORDER_DEFAULT_RADIUS;
 
           // Determine window corner radius
           if (JBSLSWindowIteratorGetCornerRadii) {
             CFArrayRef radii_ref = JBSLSWindowIteratorGetCornerRadii(iterator);
             if (radii_ref && CFArrayGetCount(radii_ref) > 0) {
               CFNumberRef value = CFArrayGetValueAtIndex(radii_ref, 0);
-              CFNumberGetValue(value, kCFNumberSInt32Type, &radius);
+              if (!CFNumberGetValue(value,
+                                    kCFNumberSInt32Type,
+                                    &detected_radius)) {
+                detected_radius = BORDER_DEFAULT_RADIUS;
+              }
             }
             if (radii_ref) CFRelease(radii_ref);
           }
-          radius = radius > 0 ? radius : 9;
-
-          border->radius = radius;
-          border->inner_radius = radius + 1;
+          border_set_detected_radius(border, detected_radius);
           border->target_wid = wid;
           border->sid = sid;
           border_update(border, false);

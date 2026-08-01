@@ -13,6 +13,7 @@
 #define BORDER_STYLE_SQUARE 's'
 #define BORDER_PADDING 8.0
 #define BORDER_TSMN 3.27f
+#define BORDER_DEFAULT_RADIUS 9
 #define BACKGROUND_EVICTION_DELAY_SECONDS 10
 
 #define ANIM_FADE   (1 << 0)
@@ -177,6 +178,17 @@ struct border {
 
   struct settings setting_override;
 };
+
+static inline void border_set_detected_radius(struct border* border,
+                                              int32_t detected_radius) {
+  if (detected_radius < 0) detected_radius = BORDER_DEFAULT_RADIUS;
+
+  bool nearly_square = detected_radius <= 1;
+  border->radius = nearly_square ? 0.0f : detected_radius;
+  border->inner_radius = nearly_square
+                         ? BORDER_TSMN
+                         : detected_radius + 1.0f;
+}
 
 struct border* border_create();
 void border_destroy(struct border* border);

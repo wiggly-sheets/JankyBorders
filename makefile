@@ -12,6 +12,8 @@ asan: | bin
 	./bin/debug
 
 test:
+	clang -std=c99 -O0 -g tests/border_radius_test.c $(LIBS) -o /tmp/jankyborders-border-radius-test
+	/tmp/jankyborders-border-radius-test
 	clang -std=c99 -O0 -g -ffunction-sections tests/color_style_test.c src/hashtable.c -Wl,-dead_strip $(LIBS) -o /tmp/jankyborders-color-style-test
 	/tmp/jankyborders-color-style-test
 	clang -std=c99 -O0 -g -ffunction-sections tests/animation_focus_test.c -Wl,-dead_strip $(LIBS) -o /tmp/jankyborders-animation-focus-test
