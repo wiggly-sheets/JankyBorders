@@ -77,7 +77,9 @@ static void window_modify_handler(uint32_t event, uint32_t* window_id, size_t _,
     windows_window_update(windows, wid);
   } else if (event == EVENT_WINDOW_REORDER) {
     debug("Window Reorder (and focus): %d\n", wid);
-    windows_window_update(windows, wid);
+    // yabai autoraise emits reorder before focus state settles. Updating here
+    // orders a border/blur companion with stale focus state and can expose a
+    // one-sided blur seam. Let the subsequent focus pass order both surfaces.
     DELAY_ASYNC_EXEC_ON_MAIN_THREAD(10000, {
       windows_determine_and_focus_active_window(windows);
     });
