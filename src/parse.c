@@ -71,8 +71,28 @@ static bool parse_solid(struct color_style* style,
   return true;
 }
 
+static bool parse_multi(struct color_style* style, const char* token) {
+  uint32_t left, top, right, bottom;
+  int consumed = 0;
+  if (sscanf(token,
+             "multi(left=0x%x,top=0x%x,right=0x%x,bottom=0x%x)%n",
+             &left, &top, &right, &bottom, &consumed) != 4
+      || consumed != (int)strlen(token)) {
+    return false;
+  }
+
+  style->stype = COLOR_STYLE_MULTI;
+  style->glow = false;
+  style->multi.left = left;
+  style->multi.top = top;
+  style->multi.right = right;
+  style->multi.bottom = bottom;
+  return true;
+}
+
 static bool parse_color_style(struct color_style* style, const char* token) {
-  if (parse_gradient(style,
+  if (parse_multi(style, token)
+      || parse_gradient(style,
                      token,
                      "glow(gradient(top_left=0x%x,bottom_right=0x%x))%n",
                      TL_TO_BR,

@@ -142,6 +142,7 @@ could be issued.
 
 	The color argument can take the special values: ++
 	_double(<color>,<color>)_ ++
+	_multi(left=0xAARRGGBB,top=0xAARRGGBB,right=0xAARRGGBB,bottom=0xAARRGGBB)_ ++
 	_gradient(top_left=0xAARRGGBB,bottom_right=0xAARRGGBB)_ ++
 	_gradient(top_right=0xAARRGGBB,bottom_left=0xAARRGGBB)_ ++
 	_glow(0xAARRGGBB)_ ++
@@ -153,6 +154,9 @@ could be issued.
 	gradient. For example: ++
 	_double(glow(gradient(top_left=0xffff0000,bottom_right=0xff0000ff)),glow(0xffffffff))_ ++
 	Wrap each nested color independently; _glow(double(...))_ is not supported.
+	_multi(...)_ colors each edge independently. All four solid colors are
+	required; it cannot be nested inside _double(...)_. Corners use their
+	adjacent vertical edge color.
 
 	The glow color for a gradient is the alpha-weighted blend of its two
 	endpoint colors.

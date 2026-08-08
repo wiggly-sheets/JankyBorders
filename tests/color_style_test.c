@@ -61,6 +61,27 @@ int main(void) {
   assert(!settings.active_window.layers[0].glow);
   assert(settings.active_window.layers[0].color == 0xffabcdef);
 
+  char multi[] =
+      "active_color=multi(left=0xffff0000,top=0xff00ff00,right=0xff0000ff,bottom=0xffffffff)";
+  char* multi_arguments[] = { multi };
+  mask = parse_settings(&settings, 1, multi_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ACTIVE);
+  assert(settings.active_window.layer_count == 1);
+  assert(settings.active_window.layers[0].stype == COLOR_STYLE_MULTI);
+  assert(settings.active_window.layers[0].multi.left == 0xffff0000);
+  assert(settings.active_window.layers[0].multi.top == 0xff00ff00);
+  assert(settings.active_window.layers[0].multi.right == 0xff0000ff);
+  assert(settings.active_window.layers[0].multi.bottom == 0xffffffff);
+
+  struct border_appearance previous_multi = settings.active_window;
+  char incomplete_multi[] = "active_color=multi(left=0xffff0000,top=0xff00ff00)";
+  char* incomplete_multi_arguments[] = { incomplete_multi };
+  mask = parse_settings(&settings, 1, incomplete_multi_arguments);
+  assert(mask == 0);
+  assert(memcmp(&settings.active_window,
+                &previous_multi,
+                sizeof(struct border_appearance)) == 0);
+
   char active_double[] =
       "active_color=double(glow(gradient(top_left=0xffff0000,bottom_right=0xff0000ff)),gradient(top_right=0xff00ff00,bottom_left=0xffffffff))";
   char* active_double_arguments[] = { active_double };

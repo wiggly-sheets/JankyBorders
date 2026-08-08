@@ -362,6 +362,50 @@ static void border_draw_double_layer(struct border* border,
   CGContextRestoreGState(context);
 }
 
+static void border_draw_multi_color(struct border* border,
+                                    CGRect path_rect,
+                                    float inset,
+                                    float corner_radius,
+                                    bool square,
+                                    const struct color_style* style) {
+  CGContextRef context = border->context;
+  CGRect bounds = CGContextGetClipBoundingBox(context);
+  CGFloat middle_x = CGRectGetMidX(path_rect);
+  CGFloat middle_y = CGRectGetMidY(path_rect);
+  struct {
+    CGRect rect;
+    uint32_t color;
+  } edges[] = {
+    { CGRectMake(CGRectGetMinX(bounds), CGRectGetMinY(bounds),
+                 middle_x - CGRectGetMinX(bounds), CGRectGetHeight(bounds)),
+      style->multi.left },
+    { CGRectMake(middle_x, CGRectGetMinY(bounds),
+                 CGRectGetMaxX(bounds) - middle_x,
+                 middle_y - CGRectGetMinY(bounds)), style->multi.top },
+    { CGRectMake(middle_x, middle_y,
+                 CGRectGetMaxX(bounds) - middle_x,
+                 CGRectGetMaxY(bounds) - middle_y), style->multi.right },
+    { CGRectMake(CGRectGetMinX(bounds), middle_y,
+                 middle_x - CGRectGetMinX(bounds),
+                 CGRectGetMaxY(bounds) - middle_y), style->multi.bottom },
+  };
+
+  for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); ++i) {
+    CGContextSaveGState(context);
+    CGContextClipToRect(context, edges[i].rect);
+    drawing_set_stroke_and_fill(context, edges[i].color, false);
+    if (square) {
+      drawing_draw_square_with_inset(context, path_rect, inset);
+    } else {
+      drawing_draw_rounded_rect_with_inset(context,
+                                           path_rect,
+                                           corner_radius,
+                                           false);
+    }
+    CGContextRestoreGState(context);
+  }
+}
+
 static void border_draw(struct border* border, CGRect frame, struct settings* settings) {
   if (!border->context) return;
   CGContextSaveGState(border->context);
@@ -519,6 +563,13 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                                                corner_radius  );
     }
     CGContextRestoreGState(border->context);
+  } else if (color_style.stype == COLOR_STYLE_MULTI) {
+    border_draw_multi_color(border,
+                            path_rect,
+                            inset,
+                            corner_radius,
+                            square,
+                            &color_style);
   }
   if (gradient) CGGradientRelease(gradient);
 

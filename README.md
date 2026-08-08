@@ -74,6 +74,18 @@ Double borders support the existing `style`, `order`, `hidpi`, per-window
 both layers scale together while preserving the configured gap. During `ramp`,
 each layer configured with glow ramps independently.
 
+### Edge colors
+
+Use `multi(...)` to color each border edge independently. All four edge colors
+are required; corners use the color of their adjacent vertical edge.
+
+```bash
+borders 'active_color=multi(left=0xffff2d55,top=0xffffcc00,right=0xff64d2ff,bottom=0xff30d158)'
+```
+
+`multi(...)` currently accepts solid `0xAARRGGBB` colors and cannot be nested
+inside `double(...)`.
+
 With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
 keep completely square corners across both layers. Double borders on normally
 rounded windows remain concentric with the detected window radius.
