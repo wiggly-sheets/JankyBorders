@@ -17,6 +17,7 @@
 #define BORDER_TSMN 3.27f
 #define BORDER_DEFAULT_RADIUS 9
 #define BACKGROUND_EVICTION_DELAY_SECONDS 10
+#define SHIMMER_MAX_COLORS 16
 
 #define ANIM_FADE   (1 << 0)
 #define ANIM_RAMP   (1 << 1)
@@ -87,12 +88,24 @@ struct settings {
   float animation_duration;
   enum animation_easing animation_easing;
 
+  uint32_t shimmer_colors[SHIMMER_MAX_COLORS];
+  uint32_t shimmer_color_count;
+  uint32_t inactive_shimmer_colors[SHIMMER_MAX_COLORS];
+  uint32_t inactive_shimmer_color_count;
+  float shimmer_duration;
+  float shimmer_fps;
+
   bool blacklist_enabled;
   struct table blacklist;
 
   bool whitelist_enabled;
   struct table whitelist;
 };
+
+static inline bool settings_shimmer_enabled(const struct settings* settings) {
+  return settings->shimmer_color_count >= 2
+         || settings->inactive_shimmer_color_count >= 2;
+}
 
 static inline float border_appearance_extent(const struct settings* settings,
                                              bool focused) {
@@ -227,6 +240,7 @@ struct border {
   bool anim_origin_override;
   float anim_alpha;
   float anim_stroke_width;
+  CFTimeInterval shimmer_last_draw;
 
   bool is_proxy;
   bool is_destroyed;

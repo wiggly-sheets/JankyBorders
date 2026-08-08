@@ -52,6 +52,8 @@ struct settings g_settings = { .enabled = true,
                                .animation = 0,
                                .animation_duration = 0.25f,
                                .animation_easing = ANIMATION_EASING_LINEAR,
+                               .shimmer_duration = 3.0f,
+                               .shimmer_fps = 30.0f,
                                .blacklist_enabled = false,
                                .whitelist_enabled = false                    };
 
@@ -135,6 +137,7 @@ static void message_handler(void* data, uint32_t len) {
   } else if (update_mask & BORDER_UPDATE_MASK_INACTIVE) {
     windows_update_inactive(&g_windows);
   }
+  if (settings_shimmer_enabled(&g_settings)) animation_start_ticker();
 }
 
 static void send_args_to_server(mach_port_t port, int argc, char** argv) {

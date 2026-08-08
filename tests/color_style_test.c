@@ -107,6 +107,32 @@ int main(void) {
   assert(settings.border_position == BORDER_POSITION_OUTSIDE);
 
   assert(!settings.enabled);
+
+  char shimmer[] = "shimmer=0xffff0000,0xffffff00,0xff00ff00";
+  char* shimmer_arguments[] = { shimmer };
+  mask = parse_settings(&settings, 1, shimmer_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ACTIVE);
+  assert(settings.shimmer_color_count == 3);
+  assert(settings.shimmer_colors[0] == 0xffff0000);
+  assert(settings.shimmer_colors[2] == 0xff00ff00);
+
+  char inactive_shimmer[] = "inactive_shimmer=0xff111111,0xff222222";
+  char* inactive_shimmer_arguments[] = { inactive_shimmer };
+  mask = parse_settings(&settings, 1, inactive_shimmer_arguments);
+  assert(mask == BORDER_UPDATE_MASK_INACTIVE);
+  assert(settings.inactive_shimmer_color_count == 2);
+
+  char shimmer_duration[] = "shimmer_duration=2.5";
+  char* shimmer_duration_arguments[] = { shimmer_duration };
+  mask = parse_settings(&settings, 1, shimmer_duration_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert_close(settings.shimmer_duration, 2.5f);
+
+  char shimmer_fps[] = "shimmer_fps=24";
+  char* shimmer_fps_arguments[] = { shimmer_fps };
+  mask = parse_settings(&settings, 1, shimmer_fps_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert_close(settings.shimmer_fps, 24.0f);
   char toggle[] = "toggle=on";
   char* toggle_arguments[] = { toggle };
   mask = parse_settings(&settings, 1, toggle_arguments);

@@ -7,6 +7,12 @@
 struct settings g_settings;
 struct table g_windows;
 
+struct settings* border_get_settings(struct border* border) {
+  return border->setting_override.enabled
+         ? &border->setting_override
+         : &g_settings;
+}
+
 static int animating_update_count;
 static int final_update_count;
 

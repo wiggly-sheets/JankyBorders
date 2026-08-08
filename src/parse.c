@@ -226,6 +226,38 @@ static bool parse_non_negative_float(float* result,
   return true;
 }
 
+static bool parse_shimmer_colors(uint32_t* colors,
+                                 uint32_t* color_count,
+                                 const char* value,
+                                 const char* name) {
+  uint32_t parsed[SHIMMER_MAX_COLORS];
+  uint32_t count = 0;
+  char copy[strlen(value) + 1];
+  strcpy(copy, value);
+  char* cursor = copy;
+  char* token;
+  while ((token = strsep(&cursor, ","))) {
+    uint32_t color;
+    int consumed = 0;
+    if (count == SHIMMER_MAX_COLORS
+        || sscanf(token, "0x%x%n", &color, &consumed) != 1
+        || consumed != (int)strlen(token)) {
+      printf("[?] Borders: %s requires 2-%d colors in 0xAARRGGBB format\n",
+             name, SHIMMER_MAX_COLORS);
+      return false;
+    }
+    parsed[count++] = color;
+  }
+  if (count < 2) {
+    printf("[?] Borders: %s requires 2-%d colors in 0xAARRGGBB format\n",
+           name, SHIMMER_MAX_COLORS);
+    return false;
+  }
+  memcpy(colors, parsed, sizeof(parsed));
+  *color_count = count;
+  return true;
+}
+
 static bool parse_widths(struct settings* settings, const char* token) {
   float outer;
   float inner;
@@ -396,6 +428,42 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       if (animation >= 0) {
         settings->animation = animation;
         update_mask |= BORDER_UPDATE_MASK_ANIMATION;
+      }
+    }
+    else if (str_starts_with(arguments[i], "shimmer=")) {
+      if (parse_shimmer_colors(settings->shimmer_colors,
+                               &settings->shimmer_color_count,
+                               arguments[i] + strlen("shimmer="),
+                               "shimmer")) {
+        update_mask |= BORDER_UPDATE_MASK_ACTIVE;
+      }
+    }
+    else if (str_starts_with(arguments[i], "inactive_shimmer=")) {
+      if (parse_shimmer_colors(settings->inactive_shimmer_colors,
+                               &settings->inactive_shimmer_color_count,
+                               arguments[i] + strlen("inactive_shimmer="),
+                               "inactive_shimmer")) {
+        update_mask |= BORDER_UPDATE_MASK_INACTIVE;
+      }
+    }
+    else if (str_starts_with(arguments[i], "shimmer_duration=")) {
+      float duration;
+      if (sscanf(arguments[i], "shimmer_duration=%f", &duration) == 1
+          && duration > 0.0f && isfinite(duration)) {
+        settings->shimmer_duration = duration;
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+      } else {
+        printf("[?] Borders: shimmer_duration must be finite and greater than zero\n");
+      }
+    }
+    else if (str_starts_with(arguments[i], "shimmer_fps=")) {
+      float fps;
+      if (sscanf(arguments[i], "shimmer_fps=%f", &fps) == 1
+          && fps > 0.0f && isfinite(fps) && fps <= 120.0f) {
+        settings->shimmer_fps = fps;
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+      } else {
+        printf("[?] Borders: shimmer_fps must be finite, 0-120\n");
       }
     }
     else if (str_starts_with(arguments[i], "animation_duration=")) {

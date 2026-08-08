@@ -122,6 +122,20 @@ API, thereby being faster than comparable tools.
 	Toggles all borders without changing their appearance settings. Repeat the
 	command to restore borders using their prior width, colors, and options.
 
+*shimmer=<color_list>*
+	Animates active-border colors through a comma-separated palette of 2-16
+	solid colors. This replaces the configured active color while enabled.
+
+*inactive_shimmer=<color_list>*
+	Optional independent palette for inactive borders. Without it, inactive
+	borders remain static.
+
+*shimmer_duration=<float>*
+	Seconds for one complete shimmer cycle. Default: _3.0_.
+
+*shimmer_fps=<float>*
+	Shimmer redraw rate from greater than _0_ through _120_. Default: _30_.
+
 *blacklist=<application_list>*
 	The applications specified here are excluded from being bordered. For
 	example, blacklist="Safari,kitty" excludes Safari and kitty from being
@@ -177,6 +191,9 @@ could be issued.
 
 	The glow color for a gradient is the alpha-weighted blend of its two
 	endpoint colors.
+
+*<color_list>*
+	A comma-separated list of 2-16 solid _0xAARRGGBB_ colors.
 
 *<application_list>*
 	A comma separated list of application names. This argument should be

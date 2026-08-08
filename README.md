@@ -99,6 +99,19 @@ Run `borders toggle=on` to hide all borders; run same command again to restore
 them with current appearance settings. This avoids changing and later restoring
 `width`, colors, or other configuration.
 
+### Shimmer
+
+Animate active-border colors with a native replacement for janky-shimmer:
+
+```bash
+borders shimmer=0xffff0000,0xffffff00,0xff00ff00 shimmer_duration=3 shimmer_fps=30
+```
+
+`inactive_shimmer=` accepts a separate inactive palette. It is optional, so
+inactive borders remain static unless configured. Palettes contain 2-16 solid
+`0xAARRGGBB` colors; `shimmer_duration` defaults to 3 seconds and
+`shimmer_fps` to 30 (maximum 120).
+
 With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
 keep completely square corners across both layers. Double borders on normally
 rounded windows remain concentric with the detected window radius.

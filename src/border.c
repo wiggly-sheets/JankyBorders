@@ -10,6 +10,25 @@ extern struct table g_windows;
 
 static uint64_t g_background_eviction_token = 0;
 
+static uint32_t border_shimmer_color(const uint32_t* colors,
+                                     uint32_t count,
+                                     float duration) {
+  float cycle = fmodf((float)CFAbsoluteTimeGetCurrent(), duration) / duration;
+  float position = cycle * count;
+  uint32_t index = (uint32_t)floorf(position) % count;
+  uint32_t next = (index + 1) % count;
+  float progress = position - floorf(position);
+  uint32_t from = colors[index];
+  uint32_t to = colors[next];
+  uint32_t result = 0;
+  for (int shift = 0; shift <= 24; shift += 8) {
+    uint32_t start = (from >> shift) & 0xff;
+    uint32_t end = (to >> shift) & 0xff;
+    result |= (uint32_t)lroundf(animation_lerp(start, end, progress)) << shift;
+  }
+  return result;
+}
+
 static void border_recreate_context(struct border* border) {
   if (border->context) CGContextRelease(border->context);
   border->context = border->wid
@@ -415,6 +434,21 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
   struct border_appearance appearance = border->focused
                                         ? settings->active_window
                                         : settings->inactive_window;
+  const uint32_t* shimmer_colors = border->focused
+                                   ? settings->shimmer_colors
+                                   : settings->inactive_shimmer_colors;
+  uint32_t shimmer_count = border->focused
+                           ? settings->shimmer_color_count
+                           : settings->inactive_shimmer_color_count;
+  if (shimmer_count >= 2) {
+    appearance.layer_count = 1;
+    appearance.layers[0] = (struct color_style) {
+      .stype = COLOR_STYLE_SOLID,
+      .color = border_shimmer_color(shimmer_colors,
+                                    shimmer_count,
+                                    settings->shimmer_duration),
+    };
+  }
   bool is_double = appearance.layer_count == 2;
   struct color_style color_style = appearance.layers[0];
   float base_extent = border_appearance_extent(settings, border->focused);

@@ -169,6 +169,28 @@ Toggles all borders without changing their appearance settings.\& Repeat the
 command to restore borders using their prior width, colors, and options.\&
 .PP
 .RE
+\fBshimmer=<color_list>\fR
+.RS 4
+Animates active\-border colors through a comma\-separated palette of 2\-16
+solid colors.\& This replaces the configured active color while enabled.\&
+.PP
+.RE
+\fBinactive_shimmer=<color_list>\fR
+.RS 4
+Optional independent palette for inactive borders.\& Without it, inactive
+borders remain static.\&
+.PP
+.RE
+\fBshimmer_duration=<float>\fR
+.RS 4
+Seconds for one complete shimmer cycle.\& Default: \fI3.\&0\fR.\&
+.PP
+.RE
+\fBshimmer_fps=<float>\fR
+.RS 4
+Shimmer redraw rate from greater than \fI0\fR through \fI120\fR.\& Default: \fI30\fR.\&
+.PP
+.RE
 \fBblacklist=<application_list>\fR
 .RS 4
 The applications specified here are excluded from being bordered.\& For
@@ -247,6 +269,11 @@ adjacent vertical edge color.\&
 .PP
 The glow color for a gradient is the alpha\-weighted blend of its two
 endpoint colors.\&
+.PP
+.RE
+\fB<color_list>\fR
+.RS 4
+A comma\-separated list of 2\-16 solid \fI0xAARRGGBB\fR colors.\&
 .PP
 .RE
 \fB<application_list>\fR

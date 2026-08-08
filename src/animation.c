@@ -68,6 +68,16 @@ static void animation_tick_callback(CFRunLoopTimerRef timer, void* info) {
     struct bucket* bucket = g_windows.buckets[i];
     while (bucket) {
       struct border* border = bucket->value;
+      struct settings* settings = border ? border_get_settings(border) : NULL;
+      if (settings && settings_shimmer_enabled(settings)) {
+        float interval = 1.0f / settings->shimmer_fps;
+        if (now - border->shimmer_last_draw >= interval) {
+          border->shimmer_last_draw = now;
+          border->needs_redraw = true;
+          border_update(border, false);
+        }
+        any_animating = true;
+      }
       if (border->animating) {
         float progress = border->anim_duration > 0.0f
                          ? (float)((now - border->anim_start)
