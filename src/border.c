@@ -691,7 +691,14 @@ void border_update_internal(struct border* border, struct settings* settings) {
       border->focused);
   float background_blur_radius = border_background_blur_radius(settings,
                                                                border->focused);
-  if (background_host != BORDER_BACKGROUND_COMPANION) {
+  // `background_host=border` keeps fill on the border surface. With a below
+  // border that surface is larger than its target, so host blur on a
+  // target-sized companion instead; this preserves border-host semantics
+  // without letting blur leak outside the window.
+  bool blur_companion = background_host == BORDER_BACKGROUND_BORDER
+                        && background_blur_radius > 0.0f
+                        && border_effective_order(settings) == BORDER_ORDER_BELOW;
+  if (background_host != BORDER_BACKGROUND_COMPANION && !blur_companion) {
     border_destroy_background_window(border);
   }
   if (border->wid && background_host != BORDER_BACKGROUND_COMPANION) {
@@ -699,6 +706,7 @@ void border_update_internal(struct border* border, struct settings* settings) {
                            border->wid,
                            &border->border_blur_radius,
                            background_host == BORDER_BACKGROUND_BORDER
+                           && !blur_companion
                            ? background_blur_radius
                            : 0.0f);
   }
@@ -733,7 +741,8 @@ void border_update_internal(struct border* border, struct settings* settings) {
   }
 
   bool background_placement_needed = false;
-  if (background_host == BORDER_BACKGROUND_COMPANION && !border->is_proxy) {
+  if ((background_host == BORDER_BACKGROUND_COMPANION || blur_companion)
+      && !border->is_proxy) {
     border_set_blur_radius(border,
                            border->wid,
                            &border->border_blur_radius,
@@ -741,6 +750,12 @@ void border_update_internal(struct border* border, struct settings* settings) {
     background_placement_needed = border_update_background(border,
                                                            border->target_bounds,
                                                            settings);
+    if (blur_companion) {
+      border_set_blur_radius(border,
+                             border->background_wid,
+                             &border->background_blur_radius,
+                             background_blur_radius);
+    }
   } else if (background_host == BORDER_BACKGROUND_BORDER) {
     border_set_blur_radius(border,
                            border->wid,

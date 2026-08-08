@@ -203,6 +203,8 @@ The `background_host` option controls which window owns the fill and blur:
   preventing below-order blur from extending outside window bounds.
 - `border` uses the original single-window implementation with either order.
   With `order=above`, the fill and blur are composited above the application.
+  With `order=below` and blur enabled, fill stays on the border while blur uses
+  a target-sized companion to remain inside window bounds.
 - `companion` uses a target-sized companion window with either order. This keeps
   blur inside the application bounds, including with `order=below`.
 

@@ -71,7 +71,9 @@ API, thereby being faster than comparable tools.
 	uses a target-sized companion whenever blur is enabled, preventing blur from
 	extending outside a below-order window. _border_ forces the original single-window implementation
 	with either order; with _order=above_, fill and blur are composited above the
-	application. _companion_ forces the target-sized companion with either order
+	application. With _order=below_ and blur enabled, fill stays on the border
+	while blur uses a target-sized companion to remain within window bounds.
+	_companion_ forces the target-sized companion with either order
 	and keeps blur inside the application bounds.
 
 *blur_radius=<float>*
