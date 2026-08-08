@@ -270,6 +270,25 @@ static bool parse_state_color(uint32_t* color, bool* override,
   return true;
 }
 
+static bool parse_animation_modes(const char* value, int* result) {
+  int modes = 0;
+  bool none = false;
+  while (value) {
+    const char* separator = strchr(value, ',');
+    size_t length = separator ? (size_t)(separator - value) : strlen(value);
+    if (token_equals(value, length, "none")) none = true;
+    else if (token_equals(value, length, "fade")) modes |= ANIM_FADE;
+    else if (token_equals(value, length, "ramp")) modes |= ANIM_RAMP;
+    else if (token_equals(value, length, "slide")) modes |= ANIM_SLIDE;
+    else if (token_equals(value, length, "pulse")) modes |= ANIM_PULSE;
+    else return false;
+    value = separator ? separator + 1 : NULL;
+  }
+  if (none && modes) return false;
+  *result = modes;
+  return true;
+}
+
 static bool parse_widths(struct settings* settings, const char* token) {
   float outer;
   float inner;
@@ -448,6 +467,16 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
                                arguments[i] + strlen("shimmer="),
                                "shimmer")) {
         update_mask |= BORDER_UPDATE_MASK_ACTIVE;
+      }
+    }
+    else if (str_starts_with(arguments[i], "inactive_animation=")) {
+      int animation;
+      if (parse_animation_modes(arguments[i] + strlen("inactive_animation="),
+                                &animation)) {
+        settings->inactive_animation = animation;
+        update_mask |= BORDER_UPDATE_MASK_ANIMATION;
+      } else {
+        printf("[?] Borders: Invalid inactive_animation value\n");
       }
     }
     else if (str_starts_with(arguments[i], "inactive_shimmer=")) {

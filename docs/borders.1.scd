@@ -130,6 +130,9 @@ API, thereby being faster than comparable tools.
 	Animates active-border colors through a comma-separated palette of 2-16
 	solid colors. This replaces the configured active color while enabled.
 
+*inactive_animation=<animation_list>*
+	Optional animation used by window transitioning from focused to inactive.
+
 *inactive_shimmer=<color_list>*
 	Optional independent palette for inactive borders. Without it, inactive
 	borders remain static.

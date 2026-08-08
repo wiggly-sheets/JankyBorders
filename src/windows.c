@@ -224,8 +224,10 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
   struct settings* new_settings = new_focus
                                   ? border_get_settings(new_focus)
                                   : NULL;
+  struct settings* old_settings = old_focus ? border_get_settings(old_focus) : NULL;
   if (new_settings
-      && new_settings->animation != 0
+      && (new_settings->animation != 0
+          || (old_settings && old_settings->inactive_animation != 0))
       && old_focus
       && !mouse_down) {
     CFTimeInterval now = CACurrentMediaTime();
@@ -237,7 +239,15 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
           windows_cancel_border_animation(border);
           border->focused = false;
           border->needs_redraw = true;
-          border_update(border, false);
+          if (old_settings->inactive_animation) {
+            border->animating = true;
+            border->anim_mode = old_settings->inactive_animation;
+            border->anim_start = now;
+            border->anim_duration = old_settings->animation_duration;
+            border->anim_alpha = 1.0f;
+          } else {
+            border_update(border, false);
+          }
         }
         bucket = bucket->next;
       }
@@ -245,7 +255,7 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
 
     windows_cancel_border_animation(new_focus);
     new_focus->focused = true;
-    new_focus->animating = true;
+    new_focus->animating = new_settings->animation != 0;
     new_focus->anim_mode = new_settings->animation;
     new_focus->anim_start = now;
     new_focus->anim_duration = new_settings->animation_duration;
@@ -261,7 +271,6 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
                                                     &new_bounds);
       if (old_bounds_error == kCGErrorSuccess
           && new_bounds_error == kCGErrorSuccess) {
-        struct settings* old_settings = border_get_settings(old_focus);
         float old_offset = -border_max_extent(old_settings) - BORDER_PADDING;
         float new_offset = -border_max_extent(new_settings) - BORDER_PADDING;
         old_bounds = CGRectInset(old_bounds, old_offset, old_offset);

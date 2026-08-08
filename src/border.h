@@ -87,6 +87,7 @@ struct settings {
   bool active_only;
   bool visible_neighbouring_borders;
   int animation;
+  int inactive_animation;
   float animation_duration;
   enum animation_easing animation_easing;
 

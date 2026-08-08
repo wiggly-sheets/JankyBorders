@@ -112,6 +112,9 @@ inactive borders remain static unless configured. Palettes contain 2-16 solid
 `0xAARRGGBB` colors; `shimmer_duration` defaults to 3 seconds and
 `shimmer_fps` to 30 (maximum 120).
 
+Use `inactive_animation=fade,ramp,pulse` for an independent animation when a
+window loses focus.
+
 ### yabai state colors
 
 Configure colors for yabai state, then update individual windows from yabai

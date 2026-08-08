@@ -84,7 +84,7 @@ static void animation_tick_callback(CFRunLoopTimerRef timer, void* info) {
                                    / border->anim_duration)
                          : 1.0f;
         if (progress >= 1.0f) progress = 1.0f;
-        border->anim_alpha = progress;
+        border->anim_alpha = border->focused ? progress : 1.0f - progress;
         if (progress >= 1.0f) {
           border->animating = false;
           border->anim_origin_override = false;
