@@ -210,7 +210,11 @@ static inline bool border_should_update_background_placement(
     bool has_background_window,
     bool animating,
     bool placement_needed) {
-  return has_background_window && (!animating || placement_needed);
+  // Focus/reorder events can change the target stacking relation without
+  // changing its frame. Re-apply placement so above/below blur stays attached.
+  (void)animating;
+  (void)placement_needed;
+  return has_background_window;
 }
 
 struct event_buffer {

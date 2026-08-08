@@ -346,7 +346,7 @@ int main(void) {
   assert(state_settings.active_blur_override);
   assert_close(border_background_blur_radius(&state_settings, true), 7.5f);
 
-  assert(!border_should_update_background_placement(true, true, false));
+  assert(border_should_update_background_placement(true, true, false));
   assert(border_should_update_background_placement(true, true, true));
   assert(border_should_update_background_placement(true, false, false));
   assert(!border_should_update_background_placement(false, false, true));
