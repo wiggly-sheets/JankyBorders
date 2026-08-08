@@ -789,11 +789,15 @@ void border_update_internal(struct border* border, struct settings* settings) {
     SLSTransactionSetWindowSubLevel(transaction,
                                    border->background_wid,
                                    sub_level);
+    bool inactive_foreground = !border->focused
+                               && settings->inactive_foreground;
     SLSTransactionOrderWindow(transaction,
                               border->background_wid,
-                              BORDER_ORDER_BELOW,
-                              border_background_relative_wid(border,
-                                                             settings));
+                              inactive_foreground ? BORDER_ORDER_ABOVE
+                                                  : BORDER_ORDER_BELOW,
+                              inactive_foreground ? border->target_wid
+                                                  : border_background_relative_wid(border,
+                                                                                   settings));
   }
   SLSTransactionCommit(transaction, 0);
   CFRelease(transaction);

@@ -605,6 +605,14 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       settings->active_only = false;
       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
     }
+    else if (strcmp(arguments[i], "inactive_foreground=on") == 0) {
+      settings->inactive_foreground = true;
+      update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
+    else if (strcmp(arguments[i], "inactive_foreground=off") == 0) {
+      settings->inactive_foreground = false;
+      update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
     else if (strcmp(arguments[i], "visible_neighbouring_borders=on") == 0) {
       settings->visible_neighbouring_borders = true;
       update_mask |= BORDER_UPDATE_MASK_ALL;

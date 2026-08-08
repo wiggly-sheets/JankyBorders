@@ -135,6 +135,9 @@ backing-surface use; `inactive_color` has no visible effect. Default: `off`.
 
 Use `style=none` to disable borders without changing colors or widths.
 
+Use `inactive_foreground=on inactive_background_color=0x80000000` to dim
+inactive windows. `inactive_blur_radius` can add a foreground blur.
+
 With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
 keep completely square corners across both layers. Double borders on normally
 rounded windows remain concentric with the detected window radius.

@@ -89,6 +89,11 @@ API, thereby being faster than comparable tools.
 *inactive_blur_radius=<float>*
 	Overrides the background blur radius for unfocused windows.
 
+*inactive_foreground=<boolean>*
+	If _on_, inactive background fill and blur render above inactive application
+	windows. Use with _inactive_background_color_ and/or _inactive_blur_radius_
+	to dim inactive windows. _off_ is default.
+
 *width=<float>*
 	Determines the width of the border. For example, width=5.0 creates a border
 	5.0 points wide. For double colors, _width=double(4.0,2.0)_ configures the
