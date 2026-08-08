@@ -127,6 +127,12 @@ int main(void) {
   assert(mask == BORDER_UPDATE_MASK_RECREATE_ALL);
   assert(settings.active_only);
 
+  char style_none[] = "style=none";
+  char* style_none_arguments[] = { style_none };
+  mask = parse_settings(&settings, 1, style_none_arguments);
+  assert(mask == BORDER_UPDATE_MASK_RECREATE_ALL);
+  assert(settings.border_style == BORDER_STYLE_NONE);
+
   char shimmer[] = "shimmer=0xffff0000,0xffffff00,0xff00ff00";
   char* shimmer_arguments[] = { shimmer };
   mask = parse_settings(&settings, 1, shimmer_arguments);

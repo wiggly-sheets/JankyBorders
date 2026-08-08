@@ -66,6 +66,7 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
 
   if (!g_settings.enabled
       || pid == g_pid
+      || g_settings.border_style == BORDER_STYLE_NONE
       || !app_allowed(&g_settings, pid_name_buffer)) return false;
   if (g_settings.active_only && wid != windows_active_window_id(cid)) return false;
 

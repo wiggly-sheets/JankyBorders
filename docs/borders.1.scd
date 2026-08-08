@@ -174,7 +174,7 @@ could be issued.
 	Either _on_ or _off_.
 
 *<style>*
-	Either _round_, _square_, or _uniform_.
+	Either _round_, _square_, _uniform_, or _none_. _none_ disables borders.
 
 *<position>*
 	Either _outside_ or _inside_.

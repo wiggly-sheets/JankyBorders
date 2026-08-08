@@ -398,7 +398,7 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       update_mask |= BORDER_UPDATE_MASK_ALL;
     }
     else if (sscanf(arguments[i], "style=%c", &settings->border_style) == 1) {
-      update_mask |= BORDER_UPDATE_MASK_ALL;
+      update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
     }
     else if (str_starts_with(arguments[i], "animation=")) {
       const char* value = arguments[i] + strlen("animation=");
