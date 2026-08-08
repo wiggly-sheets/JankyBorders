@@ -69,6 +69,17 @@ static void border_destroy_window(struct border* border) {
 
 static void border_destroy_background_window(struct border* border) {
   border->background_eviction_token = 0;
+  if (border->background_wid) {
+    CFTypeRef transaction = SLSTransactionCreate(border->cid);
+    if (transaction) {
+      SLSTransactionOrderWindow(transaction,
+                                border->background_wid,
+                                0,
+                                border->target_wid);
+      SLSTransactionCommit(transaction, 0);
+      CFRelease(transaction);
+    }
+  }
   if (border->background_context) CGContextRelease(border->background_context);
   if (border->background_wid) SLSReleaseWindow(border->cid,
                                                border->background_wid);
@@ -955,13 +966,15 @@ void border_update(struct border* border, bool try_async) {
 
 void border_hide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
-  if (border->wid) {
+  if (border->wid || border->background_wid) {
     CFTypeRef transaction = SLSTransactionCreate(border->cid);
     if (transaction) {
-      SLSTransactionOrderWindow(transaction,
-                                border->wid,
-                                0,
-                                border->target_wid);
+      if (border->wid) {
+        SLSTransactionOrderWindow(transaction,
+                                  border->wid,
+                                  0,
+                                  border->target_wid);
+      }
       if (border->background_wid) {
         SLSTransactionOrderWindow(transaction,
                                   border->background_wid,
