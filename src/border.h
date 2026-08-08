@@ -201,12 +201,6 @@ static inline enum border_background_host border_background_host(
   if (settings->background_mode == BORDER_BACKGROUND_FORCE_COMPANION) {
     return BORDER_BACKGROUND_COMPANION;
   }
-  // The below-order border window is intentionally larger than its target.
-  // Applying blur to it leaks outside the window bounds, especially while
-  // yabai changes focus/order. A target-sized companion keeps blur contained.
-  if (border_background_blur_radius(settings, focused) > 0.0f) {
-    return BORDER_BACKGROUND_COMPANION;
-  }
   return border_effective_order(settings) == BORDER_ORDER_ABOVE
          ? BORDER_BACKGROUND_COMPANION
          : BORDER_BACKGROUND_BORDER;

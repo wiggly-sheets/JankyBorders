@@ -68,8 +68,8 @@ API, thereby being faster than comparable tools.
 
 *background_host=<host>*
 	Selects the window that owns background fill and blur. _auto_ (the default)
-	uses a target-sized companion whenever blur is enabled, preventing blur from
-	extending outside a below-order window. _border_ forces the original single-window implementation
+	uses the border window with _order=below_ and a target-sized companion window
+	with _order=above_. _border_ forces the original single-window implementation
 	with either order; with _order=above_, fill and blur are composited above the
 	application. _companion_ forces the target-sized companion with either order
 	and keeps blur inside the application bounds.
@@ -78,7 +78,8 @@ API, thereby being faster than comparable tools.
 	Sets the background blur radius. Values are clamped to _50_; _0_ disables blur.
 	The blur layer remains below the application window and works with both
 	_order=above_ and _order=below_. Below-order borders reuse their existing window;
-	blur uses a target-sized companion window by default. Blur uses a private macOS API and
+	_order=above_ and _order=below_. Below-order borders reuse their existing window;
+	above-order borders use a companion window. Blur uses a private macOS API and
 	may affect performance. Acts as the fallback when a focused-state override is
 	not configured. Hidden and non-visible companion windows are released after a
 	ten-second grace period unless their target becomes visible again first.
