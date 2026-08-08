@@ -674,6 +674,15 @@ void border_update_internal(struct border* border, struct settings* settings) {
   }
 
   int cid = border->cid;
+  // yabai can move a window between Spaces without delivering a Window Move
+  // notification. Never make visibility or placement decisions from cached SID.
+  uint64_t current_sid = window_space_id(cid, border->target_wid);
+  if (current_sid && current_sid != border->sid) {
+    border->sid = current_sid;
+    if (border->wid) window_send_to_space(cid, border->wid, current_sid);
+    if (border->background_wid)
+      window_send_to_space(cid, border->background_wid, current_sid);
+  }
   CGRect frame;
   if (!border_calculate_bounds(border, &frame, settings)) return;
 
