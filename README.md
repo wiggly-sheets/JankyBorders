@@ -112,6 +112,19 @@ inactive borders remain static unless configured. Palettes contain 2-16 solid
 `0xAARRGGBB` colors; `shimmer_duration` defaults to 3 seconds and
 `shimmer_fps` to 30 (maximum 120).
 
+### yabai state colors
+
+Configure colors for yabai state, then update individual windows from yabai
+signals or any script:
+
+```bash
+borders stack_color=0xffff00ff floating_color=0xffff9500 bsp_color=0xff00d4ff
+borders apply-to="$YABAI_WINDOW_ID" state=stack
+```
+
+States are `stack`, `floating`, `bsp`, and `none`. State colors override normal
+and shimmer colors for that window. This signal bridge avoids polling yabai.
+
 With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
 keep completely square corners across both layers. Double borders on normally
 rounded windows remain concentric with the detected window radius.

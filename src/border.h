@@ -94,12 +94,26 @@ struct settings {
   uint32_t inactive_shimmer_color_count;
   float shimmer_duration;
   float shimmer_fps;
+  uint32_t stack_color;
+  uint32_t floating_color;
+  uint32_t bsp_color;
+  bool stack_color_override;
+  bool floating_color_override;
+  bool bsp_color_override;
+  int window_state;
 
   bool blacklist_enabled;
   struct table blacklist;
 
   bool whitelist_enabled;
   struct table whitelist;
+};
+
+enum border_window_state {
+  BORDER_WINDOW_STATE_NONE,
+  BORDER_WINDOW_STATE_STACK,
+  BORDER_WINDOW_STATE_FLOATING,
+  BORDER_WINDOW_STATE_BSP,
 };
 
 static inline bool settings_shimmer_enabled(const struct settings* settings) {
@@ -206,6 +220,7 @@ struct border {
   bool needs_redraw;
   bool too_small;
   bool sticky;
+  enum border_window_state window_state;
 
   uint64_t sid;
   uint32_t wid;

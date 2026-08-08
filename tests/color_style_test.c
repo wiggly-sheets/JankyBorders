@@ -108,6 +108,19 @@ int main(void) {
 
   assert(!settings.enabled);
 
+  char stack_color[] = "stack_color=0xffff00ff";
+  char* stack_color_arguments[] = { stack_color };
+  mask = parse_settings(&settings, 1, stack_color_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert(settings.stack_color_override);
+  assert(settings.stack_color == 0xffff00ff);
+
+  char state[] = "state=stack";
+  char* state_arguments[] = { state };
+  mask = parse_settings(&settings, 1, state_arguments);
+  assert(mask == BORDER_UPDATE_MASK_WINDOW_STATE);
+  assert(settings.window_state == BORDER_WINDOW_STATE_STACK);
+
   char shimmer[] = "shimmer=0xffff0000,0xffffff00,0xff00ff00";
   char* shimmer_arguments[] = { shimmer };
   mask = parse_settings(&settings, 1, shimmer_arguments);

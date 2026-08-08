@@ -449,6 +449,19 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                                     settings->shimmer_duration),
     };
   }
+  uint32_t state_color = 0;
+  if (border->window_state == BORDER_WINDOW_STATE_STACK
+      && settings->stack_color_override) state_color = settings->stack_color;
+  else if (border->window_state == BORDER_WINDOW_STATE_FLOATING
+           && settings->floating_color_override) state_color = settings->floating_color;
+  else if (border->window_state == BORDER_WINDOW_STATE_BSP
+           && settings->bsp_color_override) state_color = settings->bsp_color;
+  if (state_color) {
+    appearance.layer_count = 1;
+    appearance.layers[0] = (struct color_style) {
+      .stype = COLOR_STYLE_SOLID, .color = state_color,
+    };
+  }
   bool is_double = appearance.layer_count == 2;
   struct color_style color_style = appearance.layers[0];
   float base_extent = border_appearance_extent(settings, border->focused);

@@ -191,6 +191,19 @@ Seconds for one complete shimmer cycle.\& Default: \fI3.\&0\fR.\&
 Shimmer redraw rate from greater than \fI0\fR through \fI120\fR.\& Default: \fI30\fR.\&
 .PP
 .RE
+\fBstack_color=<color>\fR, \fBfloating_color=<color>\fR, \fBbsp_color=<color>\fR
+.RS 4
+Solid colors used when a window'\&s external state is \fIstack\fR, \fIfloating\fR, or
+\fIbsp\fR.\& State colors override regular and shimmer colors for that window.\&
+.PP
+.RE
+\fBstate=<state>\fR
+.RS 4
+Sets an individual window'\&s external state when combined with
+\fIapply\-to=<window_id>\fR.\& Use this from yabai signals or other integrations.\&
+Supported values: \fIstack\fR, \fIfloating\fR, \fIbsp\fR, and \fInone\fR.\&
+.PP
+.RE
 \fBblacklist=<application_list>\fR
 .RS 4
 The applications specified here are excluded from being bordered.\& For
@@ -231,6 +244,11 @@ Either \fIround\fR, \fIsquare\fR, or \fIuniform\fR.\&
 \fB<position>\fR
 .RS 4
 Either \fIoutside\fR or \fIinside\fR.\&
+.PP
+.RE
+\fB<state>\fR
+.RS 4
+Either \fIstack\fR, \fIfloating\fR, \fIbsp\fR, or \fInone\fR.\&
 .PP
 .RE
 \fB<color>\fR

@@ -92,8 +92,13 @@ static void message_handler(void* data, uint32_t len) {
   if (settings.apply_to > 0) {
     struct border* border = table_find(&g_windows, &settings.apply_to);
     if (border) {
-      border->setting_override = settings;
-      border->setting_override.enabled = true;
+      if (update_mask & BORDER_UPDATE_MASK_WINDOW_STATE) {
+        border->window_state = settings.window_state;
+      }
+      if (update_mask & ~BORDER_UPDATE_MASK_WINDOW_STATE) {
+        border->setting_override = settings;
+        border->setting_override.enabled = true;
+      }
       border->needs_redraw = true;
       border_update(border, true);
     }

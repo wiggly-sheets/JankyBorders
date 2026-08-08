@@ -258,6 +258,18 @@ static bool parse_shimmer_colors(uint32_t* colors,
   return true;
 }
 
+static bool parse_state_color(uint32_t* color, bool* override,
+                              const char* value, const char* name) {
+  int consumed = 0;
+  if (sscanf(value, "0x%x%n", color, &consumed) != 1
+      || consumed != (int)strlen(value)) {
+    printf("[?] Borders: %s requires a solid 0xAARRGGBB color\n", name);
+    return false;
+  }
+  *override = true;
+  return true;
+}
+
 static bool parse_widths(struct settings* settings, const char* token) {
   float outer;
   float inner;
@@ -465,6 +477,30 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       } else {
         printf("[?] Borders: shimmer_fps must be finite, 0-120\n");
       }
+    }
+    else if (str_starts_with(arguments[i], "stack_color=")) {
+      if (parse_state_color(&settings->stack_color, &settings->stack_color_override,
+                            arguments[i] + strlen("stack_color="), "stack_color"))
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
+    else if (str_starts_with(arguments[i], "floating_color=")) {
+      if (parse_state_color(&settings->floating_color, &settings->floating_color_override,
+                            arguments[i] + strlen("floating_color="), "floating_color"))
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
+    else if (str_starts_with(arguments[i], "bsp_color=")) {
+      if (parse_state_color(&settings->bsp_color, &settings->bsp_color_override,
+                            arguments[i] + strlen("bsp_color="), "bsp_color"))
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
+    else if (str_starts_with(arguments[i], "state=")) {
+      const char* state = arguments[i] + strlen("state=");
+      if (strcmp(state, "none") == 0) settings->window_state = BORDER_WINDOW_STATE_NONE;
+      else if (strcmp(state, "stack") == 0) settings->window_state = BORDER_WINDOW_STATE_STACK;
+      else if (strcmp(state, "floating") == 0) settings->window_state = BORDER_WINDOW_STATE_FLOATING;
+      else if (strcmp(state, "bsp") == 0) settings->window_state = BORDER_WINDOW_STATE_BSP;
+      else { printf("[?] Borders: Invalid state '%s'\n", state); continue; }
+      update_mask |= BORDER_UPDATE_MASK_WINDOW_STATE;
     }
     else if (str_starts_with(arguments[i], "animation_duration=")) {
       float duration;

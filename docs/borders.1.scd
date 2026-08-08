@@ -136,6 +136,15 @@ API, thereby being faster than comparable tools.
 *shimmer_fps=<float>*
 	Shimmer redraw rate from greater than _0_ through _120_. Default: _30_.
 
+*stack_color=<color>*, *floating_color=<color>*, *bsp_color=<color>*
+	Solid colors used when a window's external state is _stack_, _floating_, or
+	_bsp_. State colors override regular and shimmer colors for that window.
+
+*state=<state>*
+	Sets an individual window's external state when combined with
+	_apply-to=<window_id>_. Use this from yabai signals or other integrations.
+	Supported values: _stack_, _floating_, _bsp_, and _none_.
+
 *blacklist=<application_list>*
 	The applications specified here are excluded from being bordered. For
 	example, blacklist="Safari,kitty" excludes Safari and kitty from being
@@ -165,6 +174,9 @@ could be issued.
 
 *<position>*
 	Either _outside_ or _inside_.
+
+*<state>*
+	Either _stack_, _floating_, _bsp_, or _none_.
 
 *<color>*
 	A color formatted as _0xAARRGGBB_, where _A_ is the alpha channel, _R_ the
