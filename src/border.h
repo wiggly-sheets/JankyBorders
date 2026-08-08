@@ -46,7 +46,6 @@ enum border_background_mode {
   BORDER_BACKGROUND_FORCE_BORDER,
   BORDER_BACKGROUND_FORCE_COMPANION,
 };
-};
 
 struct settings {
   bool enabled;
