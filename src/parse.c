@@ -472,6 +472,10 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       settings->visible_neighbouring_borders = false;
       update_mask |= BORDER_UPDATE_MASK_ALL;
     }
+    else if (strcmp(arguments[i], "toggle=on") == 0) {
+      settings->enabled = !settings->enabled;
+      update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
+    }
     else if (sscanf(arguments[i], "apply-to=%d", &settings->apply_to) == 1) {
       update_mask |= BORDER_UPDATE_MASK_SETTING;
     }

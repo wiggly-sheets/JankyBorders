@@ -93,6 +93,12 @@ for maximized or edge-to-edge windows. Inside borders always render above the
 application, so `position=inside` overrides `order=below`. Use
 `position=outside` (default) to restore configured `order` behavior.
 
+### Toggle borders
+
+Run `borders toggle=on` to hide all borders; run same command again to restore
+them with current appearance settings. This avoids changing and later restoring
+`width`, colors, or other configuration.
+
 With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
 keep completely square corners across both layers. Double borders on normally
 rounded windows remain concentric with the detected window radius.

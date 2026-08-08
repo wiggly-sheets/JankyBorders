@@ -106,6 +106,16 @@ int main(void) {
   assert(mask == BORDER_UPDATE_MASK_RECREATE_ALL);
   assert(settings.border_position == BORDER_POSITION_OUTSIDE);
 
+  assert(!settings.enabled);
+  char toggle[] = "toggle=on";
+  char* toggle_arguments[] = { toggle };
+  mask = parse_settings(&settings, 1, toggle_arguments);
+  assert(mask == BORDER_UPDATE_MASK_RECREATE_ALL);
+  assert(settings.enabled);
+  mask = parse_settings(&settings, 1, toggle_arguments);
+  assert(mask == BORDER_UPDATE_MASK_RECREATE_ALL);
+  assert(!settings.enabled);
+
   char active_double[] =
       "active_color=double(glow(gradient(top_left=0xffff0000,bottom_right=0xff0000ff)),gradient(top_right=0xff00ff00,bottom_left=0xffffffff))";
   char* active_double_arguments[] = { active_double };

@@ -118,6 +118,10 @@ API, thereby being faster than comparable tools.
 	If set to _on_, borders stay ordered while switching Spaces so they remain
 	visible during macOS's neighbouring-Space animation. _off_ is the default.
 
+*toggle=on*
+	Toggles all borders without changing their appearance settings. Repeat the
+	command to restore borders using their prior width, colors, and options.
+
 *blacklist=<application_list>*
 	The applications specified here are excluded from being bordered. For
 	example, blacklist="Safari,kitty" excludes Safari and kitty from being
