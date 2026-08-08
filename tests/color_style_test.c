@@ -121,6 +121,12 @@ int main(void) {
   assert(mask == BORDER_UPDATE_MASK_WINDOW_STATE);
   assert(settings.window_state == BORDER_WINDOW_STATE_STACK);
 
+  char active_only[] = "active_only=on";
+  char* active_only_arguments[] = { active_only };
+  mask = parse_settings(&settings, 1, active_only_arguments);
+  assert(mask == BORDER_UPDATE_MASK_RECREATE_ALL);
+  assert(settings.active_only);
+
   char shimmer[] = "shimmer=0xffff0000,0xffffff00,0xff00ff00";
   char* shimmer_arguments[] = { shimmer };
   mask = parse_settings(&settings, 1, shimmer_arguments);

@@ -125,6 +125,11 @@ borders apply-to="$YABAI_WINDOW_ID" state=stack
 States are `stack`, `floating`, `bsp`, and `none`. State colors override normal
 and shimmer colors for that window. This signal bridge avoids polling yabai.
 
+### Active-only mode
+
+Use `active_only=on` to keep a border only for focused window. This reduces
+backing-surface use; `inactive_color` has no visible effect. Default: `off`.
+
 With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
 keep completely square corners across both layers. Double borders on normally
 rounded windows remain concentric with the detected window radius.

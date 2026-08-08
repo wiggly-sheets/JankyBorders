@@ -83,6 +83,7 @@ struct settings {
   int border_order;
   int border_position;
   bool ax_focus;
+  bool active_only;
   bool visible_neighbouring_borders;
   int animation;
   float animation_duration;

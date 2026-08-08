@@ -29,6 +29,30 @@ static bool app_allowed(struct settings* settings, char* app_name) {
   return true;
 }
 
+static uint32_t windows_active_window_id(int cid) {
+  return g_settings.ax_focus ? ax_get_front_window(cid) : get_front_window(cid);
+}
+
+static void windows_remove_all_except(struct table* windows, uint32_t wid) {
+  for (int i = 0; i < windows->capacity; ++i) {
+    struct bucket** bucket = &windows->buckets[i];
+    while (*bucket) {
+      struct bucket* current = *bucket;
+      struct border* border = current->value;
+      if (border && border->target_wid != wid) {
+        *bucket = current->next;
+        free(current->key);
+        free(current);
+        --windows->count;
+        border_destroy(border);
+      } else {
+        bucket = &current->next;
+      }
+    }
+  }
+  windows_update_notifications(windows);
+}
+
 bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
   bool window_created = false;
   int cid = SLSMainConnectionID();
@@ -43,6 +67,7 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
   if (!g_settings.enabled
       || pid == g_pid
       || !app_allowed(&g_settings, pid_name_buffer)) return false;
+  if (g_settings.active_only && wid != windows_active_window_id(cid)) return false;
 
   CFArrayRef target_ref = cfarray_of_cfnumbers(&wid,
                                                sizeof(uint32_t),
@@ -82,6 +107,7 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
           border_set_detected_radius(border, detected_radius);
           border->target_wid = wid;
           border->sid = sid;
+          if (g_settings.active_only) border->focused = true;
           border_update(border, false);
           windows_update_notifications(windows);
         }
@@ -333,9 +359,7 @@ void windows_update_notifications(struct table* windows) {
 
 void windows_determine_and_focus_active_window(struct table* windows) {
   int cid = SLSMainConnectionID();
-  uint32_t front_wid = g_settings.ax_focus
-                       ? ax_get_front_window(cid)
-                       : get_front_window(cid);
+  uint32_t front_wid = windows_active_window_id(cid);
 
   debug("Front window: %d\n", front_wid);
   if (!windows_window_focus(windows, front_wid)) {
@@ -346,11 +370,16 @@ void windows_determine_and_focus_active_window(struct table* windows) {
       windows_window_focus(windows, front_wid);
     }
   }
+  if (g_settings.active_only) windows_remove_all_except(windows, front_wid);
 }
 
 void windows_draw_borders_on_current_spaces(struct table* windows) {
   debug("Space Change: Consistency check\n");
   int cid = SLSMainConnectionID();
+  if (g_settings.active_only) {
+    windows_determine_and_focus_active_window(windows);
+    return;
+  }
 
   for (int i = 0; i < windows->capacity; ++i) {
     struct bucket* bucket = windows->buckets[i];
@@ -435,6 +464,10 @@ void windows_cleanup_orphaned_borders(struct table* windows) {
 
 void windows_add_existing_windows(struct table* windows) {
   int cid = SLSMainConnectionID();
+  if (g_settings.active_only) {
+    windows_determine_and_focus_active_window(windows);
+    return;
+  }
   uint64_t* space_list = NULL;
   int space_count = 0;
 

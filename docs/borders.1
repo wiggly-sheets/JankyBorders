@@ -163,6 +163,12 @@ If set to \fIon\fR, borders stay ordered while switching Spaces so they remain
 visible during macOS'\&s neighbouring\-Space animation.\& \fIoff\fR is the default.\&
 .PP
 .RE
+\fBactive_only=<boolean>\fR
+.RS 4
+If set to \fIon\fR, only focused window receives a border.\& This reduces backing
+surface use; \fIinactive_color\fR has no visible effect.\& \fIoff\fR is default.\&
+.PP
+.RE
 \fBtoggle=on\fR
 .RS 4
 Toggles all borders without changing their appearance settings.\& Repeat the
