@@ -294,6 +294,8 @@ int main(void) {
   mask = parse_settings(&settings, 1, blur_arguments);
   assert(mask == BORDER_UPDATE_MASK_ALL);
   assert_close(settings.blur_radius, 12.5f);
+  assert(border_background_host(&settings, false)
+         == BORDER_BACKGROUND_COMPANION);
 
   char clamped_blur[] = "blur_radius=100";
   char* clamped_blur_arguments[] = { clamped_blur };

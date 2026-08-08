@@ -199,8 +199,8 @@ affect performance.
 
 The `background_host` option controls which window owns the fill and blur:
 
-- `auto` (default) uses the border window with `order=below` and a target-sized
-  companion window with `order=above`.
+- `auto` (default) uses a target-sized companion whenever blur is enabled,
+  preventing below-order blur from extending outside window bounds.
 - `border` uses the original single-window implementation with either order.
   With `order=above`, the fill and blur are composited above the application.
 - `companion` uses a target-sized companion window with either order. This keeps
