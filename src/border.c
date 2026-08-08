@@ -897,16 +897,45 @@ void border_move(struct border* border) {
   pthread_mutex_unlock(&border->mutex);
 }
 
+// Collapse redraw bursts after a space switch without adding visible latency
+// to normal focus and window-management updates.
+#define DEBOUNCE_NORMAL_NS (5 * NSEC_PER_MSEC)
+#define DEBOUNCE_SPACE_NS  (80 * NSEC_PER_MSEC)
+#define SPACE_SETTLE_NS    (500 * NSEC_PER_MSEC)
+
+static uint64_t g_space_change_deadline = 0;
+
+void border_space_change_begin(void) {
+  g_space_change_deadline = dispatch_time(DISPATCH_TIME_NOW, SPACE_SETTLE_NS);
+}
+
 void border_update(struct border* border, bool try_async) {
-  (void)try_async;
-  pthread_mutex_lock(&border->mutex);
-  if (border->is_destroyed) {
+  if (!try_async) {
+    pthread_mutex_lock(&border->mutex);
+    if (!border->is_destroyed) {
+      border_update_internal(border, border_get_settings(border));
+    }
     pthread_mutex_unlock(&border->mutex);
     return;
   }
+
   struct settings* settings = border_get_settings(border);
-  border_update_internal(border, settings);
+  __block struct settings settings_copy = *settings;
+  pthread_mutex_lock(&border->mutex);
+  uint64_t generation = ++border->update_generation;
   pthread_mutex_unlock(&border->mutex);
+
+  uint64_t delay = dispatch_time(DISPATCH_TIME_NOW, 0) < g_space_change_deadline
+                   ? DEBOUNCE_SPACE_NS
+                   : DEBOUNCE_NORMAL_NS;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, delay),
+                 dispatch_get_main_queue(), ^{
+    pthread_mutex_lock(&border->mutex);
+    if (!border->is_destroyed && generation == border->update_generation) {
+      border_update_internal(border, &settings_copy);
+    }
+    pthread_mutex_unlock(&border->mutex);
+  });
 }
 
 void border_hide(struct border* border) {

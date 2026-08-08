@@ -109,6 +109,7 @@ static void front_app_handler() {
 }
 
 static void space_handler() {
+  border_space_change_begin();
   // Not all native-fullscreen windows have yet updated their space id...
   DELAY_ASYNC_EXEC_ON_MAIN_THREAD(20000, {
     windows_draw_borders_on_current_spaces(&g_windows);

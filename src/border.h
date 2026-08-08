@@ -221,6 +221,7 @@ struct border {
   bool too_small;
   bool sticky;
   enum border_window_state window_state;
+  uint64_t update_generation;
 
   uint64_t sid;
   uint32_t wid;
@@ -281,6 +282,7 @@ void border_destroy(struct border* border);
 
 void border_move(struct border* border);
 void border_update(struct border* border, bool try_async);
+void border_space_change_begin(void);
 void border_update_animating(struct border* border, float progress);
 void border_hide(struct border* border);
 void border_unhide(struct border* border);
