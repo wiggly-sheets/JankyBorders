@@ -108,6 +108,10 @@ API, thereby being faster than comparable tools.
 	accessibility permissions. Improves compatibility with other tools
 	modifying window properties on a system level (e.g. yabai).
 
+*visible_neighbouring_borders=<boolean>*
+	If set to _on_, borders stay ordered while switching Spaces so they remain
+	visible during macOS's neighbouring-Space animation. _off_ is the default.
+
 *blacklist=<application_list>*
 	The applications specified here are excluded from being bordered. For
 	example, blacklist="Safari,kitty" excludes Safari and kitty from being

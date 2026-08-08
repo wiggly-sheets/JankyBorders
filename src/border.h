@@ -79,6 +79,7 @@ struct settings {
   enum border_background_mode background_mode;
   int border_order;
   bool ax_focus;
+  bool visible_neighbouring_borders;
   int animation;
   float animation_duration;
   enum animation_easing animation_easing;

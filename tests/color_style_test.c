@@ -82,6 +82,18 @@ int main(void) {
                 &previous_multi,
                 sizeof(struct border_appearance)) == 0);
 
+  char persistent_on[] = "visible_neighbouring_borders=on";
+  char* persistent_on_arguments[] = { persistent_on };
+  mask = parse_settings(&settings, 1, persistent_on_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert(settings.visible_neighbouring_borders);
+
+  char persistent_off[] = "visible_neighbouring_borders=off";
+  char* persistent_off_arguments[] = { persistent_off };
+  mask = parse_settings(&settings, 1, persistent_off_arguments);
+  assert(mask == BORDER_UPDATE_MASK_ALL);
+  assert(!settings.visible_neighbouring_borders);
+
   char active_double[] =
       "active_color=double(glow(gradient(top_left=0xffff0000,bottom_right=0xff0000ff)),gradient(top_right=0xff00ff00,bottom_left=0xffffffff))";
   char* active_double_arguments[] = { active_double };

@@ -456,6 +456,14 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       settings->ax_focus = false;
       update_mask |= BORDER_UPDATE_MASK_SETTING;
     }
+    else if (strcmp(arguments[i], "visible_neighbouring_borders=on") == 0) {
+      settings->visible_neighbouring_borders = true;
+      update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
+    else if (strcmp(arguments[i], "visible_neighbouring_borders=off") == 0) {
+      settings->visible_neighbouring_borders = false;
+      update_mask |= BORDER_UPDATE_MASK_ALL;
+    }
     else if (sscanf(arguments[i], "apply-to=%d", &settings->apply_to) == 1) {
       update_mask |= BORDER_UPDATE_MASK_SETTING;
     }
