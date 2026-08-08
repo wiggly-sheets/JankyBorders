@@ -136,6 +136,14 @@ Sets the transparent gap between double\-border layers.\& The value must be
 finite and non\-negative.\& The default is \fI0\fR.\&
 .PP
 .RE
+\fBposition=<position>\fR
+.RS 4
+Either \fIoutside\fR (default) or \fIinside\fR.\& Inside borders draw within the
+window bounds, making them visible for maximized and edge\-to\-edge windows.\&
+Inside borders always use above\-window ordering, so \fIposition=inside\fR
+overrides \fIorder=below\fR.\&
+.PP
+.RE
 \fBhidpi=<boolean>\fR
 .RS 4
 If set to \fIon\fR, the border will be drawn with retina resolution.\&
@@ -190,6 +198,11 @@ Either \fIon\fR or \fIoff\fR.\&
 \fB<style>\fR
 .RS 4
 Either \fIround\fR, \fIsquare\fR, or \fIuniform\fR.\&
+.PP
+.RE
+\fB<position>\fR
+.RS 4
+Either \fIoutside\fR or \fIinside\fR.\&
 .PP
 .RE
 \fB<color>\fR

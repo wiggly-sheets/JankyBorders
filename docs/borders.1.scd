@@ -99,6 +99,12 @@ API, thereby being faster than comparable tools.
 	Sets the transparent gap between double-border layers. The value must be
 	finite and non-negative. The default is _0_.
 
+*position=<position>*
+	Either _outside_ (default) or _inside_. Inside borders draw within the
+	window bounds, making them visible for maximized and edge-to-edge windows.
+	Inside borders always use above-window ordering, so _position=inside_
+	overrides _order=below_.
+
 *hidpi=<boolean>*
 	If set to _on_, the border will be drawn with retina resolution.
 
@@ -138,6 +144,9 @@ could be issued.
 
 *<style>*
 	Either _round_, _square_, or _uniform_.
+
+*<position>*
+	Either _outside_ or _inside_.
 
 *<color>*
 	A color formatted as _0xAARRGGBB_, where _A_ is the alpha channel, _R_ the

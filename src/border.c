@@ -98,7 +98,7 @@ static uint32_t border_background_relative_wid(struct border* border,
                                                struct settings* settings) {
   // above: background < target < border
   // below: background < border < target
-  return settings->border_order == BORDER_ORDER_BELOW
+  return border_effective_order(settings) == BORDER_ORDER_BELOW
          ? border->wid
          : border->target_wid;
 }
@@ -222,7 +222,9 @@ static bool border_calculate_bounds(struct border* border, CGRect* frame, struct
     return false;
   }
 
-  float border_offset = -border_max_extent(settings) - BORDER_PADDING;
+  float border_offset = settings->border_position == BORDER_POSITION_INSIDE
+                        ? 0.0f
+                        : -border_max_extent(settings) - BORDER_PADDING;
   *frame = CGRectInset(window_frame, border_offset, border_offset);
 
   border->origin = frame->origin;
@@ -464,7 +466,7 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
   CGRect path_rect = border->drawing_bounds;
   CGMutablePathRef inner_clip_path = CGPathCreateMutable();
   bool square_thick_above = settings->border_style == BORDER_STYLE_SQUARE
-                            && settings->border_order == BORDER_ORDER_ABOVE
+                            && border_effective_order(settings) == BORDER_ORDER_ABOVE
                             && border_max_extent(settings) >= BORDER_TSMW;
   if (square_thick_above) {
     // Inset the frame to overlap the rounding of macOS windows to create a
@@ -712,7 +714,7 @@ void border_update_internal(struct border* border, struct settings* settings) {
   SLSTransactionSetWindowSubLevel(transaction, border->wid, sub_level);
   SLSTransactionOrderWindow(transaction,
                             border->wid,
-                            settings->border_order,
+                            border_effective_order(settings),
                             border->target_wid      );
 
   bool update_background_placement = border_should_update_background_placement(

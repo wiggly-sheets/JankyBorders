@@ -8,6 +8,8 @@
 
 #define BORDER_ORDER_ABOVE 1
 #define BORDER_ORDER_BELOW -1
+#define BORDER_POSITION_OUTSIDE 0
+#define BORDER_POSITION_INSIDE 1
 #define BORDER_STYLE_ROUND  'r'
 #define BORDER_STYLE_ROUND_UNIFORM 'u'
 #define BORDER_STYLE_SQUARE 's'
@@ -78,6 +80,7 @@ struct settings {
   bool inactive_blur_override;
   enum border_background_mode background_mode;
   int border_order;
+  int border_position;
   bool ax_focus;
   bool visible_neighbouring_borders;
   int animation;
@@ -105,6 +108,12 @@ static inline float border_appearance_extent(const struct settings* settings,
 static inline float border_max_extent(const struct settings* settings) {
   return fmaxf(border_appearance_extent(settings, true),
                border_appearance_extent(settings, false));
+}
+
+static inline int border_effective_order(const struct settings* settings) {
+  return settings->border_position == BORDER_POSITION_INSIDE
+         ? BORDER_ORDER_ABOVE
+         : settings->border_order;
 }
 
 static inline float border_layer_corner_radius(float base_radius,
@@ -158,7 +167,7 @@ static inline enum border_background_host border_background_host(
   if (settings->background_mode == BORDER_BACKGROUND_FORCE_COMPANION) {
     return BORDER_BACKGROUND_COMPANION;
   }
-  return settings->border_order == BORDER_ORDER_ABOVE
+  return border_effective_order(settings) == BORDER_ORDER_ABOVE
          ? BORDER_BACKGROUND_COMPANION
          : BORDER_BACKGROUND_BORDER;
 }

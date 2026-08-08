@@ -94,6 +94,18 @@ int main(void) {
   assert(mask == BORDER_UPDATE_MASK_ALL);
   assert(!settings.visible_neighbouring_borders);
 
+  char inside[] = "position=inside";
+  char* inside_arguments[] = { inside };
+  mask = parse_settings(&settings, 1, inside_arguments);
+  assert(mask == BORDER_UPDATE_MASK_RECREATE_ALL);
+  assert(settings.border_position == BORDER_POSITION_INSIDE);
+
+  char outside[] = "position=outside";
+  char* outside_arguments[] = { outside };
+  mask = parse_settings(&settings, 1, outside_arguments);
+  assert(mask == BORDER_UPDATE_MASK_RECREATE_ALL);
+  assert(settings.border_position == BORDER_POSITION_OUTSIDE);
+
   char active_double[] =
       "active_color=double(glow(gradient(top_left=0xffff0000,bottom_right=0xff0000ff)),gradient(top_right=0xff00ff00,bottom_left=0xffffffff))";
   char* active_double_arguments[] = { active_double };

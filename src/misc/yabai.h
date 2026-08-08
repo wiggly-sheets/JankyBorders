@@ -95,7 +95,7 @@ static void* yabai_proxy_begin_proc(void* context) {
   if (transaction) {
     SLSTransactionOrderWindow(transaction,
                               proxy->wid,
-                              info->settings.border_order,
+                              border_effective_order(&info->settings),
                               info->external_proxy_wid    );
 
     SLSTransactionSetWindowAlpha(transaction, info->border_wid, 0.f);

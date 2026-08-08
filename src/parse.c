@@ -331,6 +331,14 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       else settings->border_order = BORDER_ORDER_BELOW;
       update_mask |= BORDER_UPDATE_MASK_ALL;
     }
+    else if (strcmp(arguments[i], "position=inside") == 0) {
+      settings->border_position = BORDER_POSITION_INSIDE;
+      update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
+    }
+    else if (strcmp(arguments[i], "position=outside") == 0) {
+      settings->border_position = BORDER_POSITION_OUTSIDE;
+      update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
+    }
     else if (str_starts_with(arguments[i], "background_host=")) {
       const char* host = arguments[i] + strlen("background_host=");
       if (strcmp(host, "auto") == 0) {

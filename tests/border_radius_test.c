@@ -29,6 +29,12 @@ int main(void) {
   assert_close(border_layer_corner_radius(12.0f, 1.0f), 13.0f);
   assert_close(border_layer_corner_radius(12.0f, 8.0f), 20.0f);
 
+  struct settings outside = { .border_order = BORDER_ORDER_BELOW,
+                              .border_position = BORDER_POSITION_OUTSIDE };
+  assert(border_effective_order(&outside) == BORDER_ORDER_BELOW);
+  outside.border_position = BORDER_POSITION_INSIDE;
+  assert(border_effective_order(&outside) == BORDER_ORDER_ABOVE);
+
   puts("adaptive border radius: ok");
   return 0;
 }

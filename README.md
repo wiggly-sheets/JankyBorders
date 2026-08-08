@@ -86,6 +86,13 @@ borders 'active_color=multi(left=0xffff2d55,top=0xffffcc00,right=0xff64d2ff,bott
 `multi(...)` currently accepts solid `0xAARRGGBB` colors and cannot be nested
 inside `double(...)`.
 
+### Inside-window borders
+
+Use `position=inside` to draw a border within window bounds. This is useful
+for maximized or edge-to-edge windows. Inside borders always render above the
+application, so `position=inside` overrides `order=below`. Use
+`position=outside` (default) to restore configured `order` behavior.
+
 With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
 keep completely square corners across both layers. Double borders on normally
 rounded windows remain concentric with the detected window radius.
