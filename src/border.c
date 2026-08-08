@@ -843,10 +843,14 @@ void border_destroy(struct border* border) {
     return;
   }
   border->is_destroyed = true;
+  ++border->update_generation;
   pthread_mutex_unlock(&border->mutex);
 
   border_hide(border);
-  dispatch_async(dispatch_get_main_queue(), ^{
+  // Debounced updates retain only the raw border pointer. Keep this object
+  // alive through the longest debounce window, then release resources.
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC),
+                 dispatch_get_main_queue(), ^{
     pthread_mutex_lock(&border->mutex);
     border_destroy_window(border);
     border_destroy_background_window(border);
