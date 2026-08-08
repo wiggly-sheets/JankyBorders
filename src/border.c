@@ -872,6 +872,13 @@ void border_move(struct border* border) {
   }
 
   struct settings* settings = border_get_settings(border);
+  uint64_t new_sid = window_space_id(border->cid, border->target_wid);
+  if (new_sid && new_sid != border->sid) {
+    border->sid = new_sid;
+    if (border->wid) window_send_to_space(border->cid, border->wid, new_sid);
+    if (border->background_wid)
+      window_send_to_space(border->cid, border->background_wid, new_sid);
+  }
   float border_extent = border_max_extent(settings);
   CGRect window_frame;
   SLSGetWindowBounds(border->cid, border->target_wid, &window_frame);
