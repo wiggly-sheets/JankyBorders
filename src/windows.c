@@ -395,11 +395,14 @@ void windows_draw_borders_on_current_spaces(struct table* windows) {
     struct bucket* bucket = windows->buckets[i];
     while (bucket) {
       struct border* border = bucket->value;
-      if (border
-          && !border->sticky
-          && !border_get_settings(border)->visible_neighbouring_borders
-          && !is_space_visible(cid, border->sid)) {
-        border_hide(border);
+      if (border) {
+        if (border_get_settings(border)->visible_neighbouring_borders) {
+          // Demote previously current borders to outline-only neighbours so a
+          // blur host cannot remain over the Space that just became active.
+          border_update(border, true);
+        } else if (!border->sticky && !is_space_visible(cid, border->sid)) {
+          border_hide(border);
+        }
       }
       bucket = bucket->next;
     }
