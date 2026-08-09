@@ -401,25 +401,27 @@ static void border_draw_multi_color(struct border* border,
                                     bool square,
                                     const struct color_style* style) {
   CGContextRef context = border->context;
-  CGRect bounds = CGContextGetClipBoundingBox(context);
-  CGFloat middle_x = CGRectGetMidX(path_rect);
-  CGFloat middle_y = CGRectGetMidY(path_rect);
+  CGFloat band = fmaxf(-inset * 4.0f, 1.0f);
   struct {
     CGRect rect;
     uint32_t color;
   } edges[] = {
-    { CGRectMake(CGRectGetMinX(bounds), CGRectGetMinY(bounds),
-                 middle_x - CGRectGetMinX(bounds), CGRectGetHeight(bounds)),
-      style->multi.left },
-    { CGRectMake(middle_x, CGRectGetMinY(bounds),
-                 CGRectGetMaxX(bounds) - middle_x,
-                 middle_y - CGRectGetMinY(bounds)), style->multi.top },
-    { CGRectMake(middle_x, middle_y,
-                 CGRectGetMaxX(bounds) - middle_x,
-                 CGRectGetMaxY(bounds) - middle_y), style->multi.right },
-    { CGRectMake(CGRectGetMinX(bounds), middle_y,
-                 middle_x - CGRectGetMinX(bounds),
-                 CGRectGetMaxY(bounds) - middle_y), style->multi.bottom },
+    { CGRectMake(CGRectGetMinX(path_rect) - band,
+                 CGRectGetMinY(path_rect) - band,
+                 band * 2.0f,
+                 CGRectGetHeight(path_rect) + band * 2.0f), style->multi.left },
+    { CGRectMake(CGRectGetMinX(path_rect) - band,
+                 CGRectGetMinY(path_rect) - band,
+                 CGRectGetWidth(path_rect) + band * 2.0f,
+                 band * 2.0f), style->multi.top },
+    { CGRectMake(CGRectGetMaxX(path_rect) - band,
+                 CGRectGetMinY(path_rect) - band,
+                 band * 2.0f,
+                 CGRectGetHeight(path_rect) + band * 2.0f), style->multi.right },
+    { CGRectMake(CGRectGetMinX(path_rect) - band,
+                 CGRectGetMaxY(path_rect) - band,
+                 CGRectGetWidth(path_rect) + band * 2.0f,
+                 band * 2.0f), style->multi.bottom },
   };
 
   for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); ++i) {
