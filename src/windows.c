@@ -329,17 +329,7 @@ void windows_window_move(struct table* windows, uint32_t wid) {
 
 void windows_window_hide(struct table* windows, uint32_t wid) {
   struct border* border = table_find(windows, &wid);
-  if (!border) return;
-
-  // yabai's instant Space changes can emit Window Hide for windows that are
-  // merely leaving the visible Space. Re-evaluate instead of unconditionally
-  // ordering the border out when neighbouring borders are requested; a real
-  // hide/minimize still fails the target-ordering check in border_update().
-  if (border_get_settings(border)->visible_neighbouring_borders) {
-    border_update(border, true);
-  } else {
-    border_hide(border);
-  }
+  if (border) border_update(border, true);
 }
 
 void windows_window_unhide(struct table* windows, uint32_t wid) {
@@ -405,15 +395,7 @@ void windows_draw_borders_on_current_spaces(struct table* windows) {
     struct bucket* bucket = windows->buckets[i];
     while (bucket) {
       struct border* border = bucket->value;
-      if (border) {
-        if (border_get_settings(border)->visible_neighbouring_borders) {
-          // Demote previously current borders to outline-only neighbours so a
-          // blur host cannot remain over the Space that just became active.
-          border_update(border, true);
-        } else if (!border->sticky && !is_space_visible(cid, border->sid)) {
-          border_hide(border);
-        }
-      }
+      if (border) border_update(border, true);
       bucket = bucket->next;
     }
   }

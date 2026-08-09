@@ -5,7 +5,7 @@
 .nh
 .ad l
 .\" Begin generated content:
-.TH "borders" "1" "2026\-08\-08"
+.TH "borders" "1" "2026\-08\-09"
 .PP
 .SH NAME
 .PP
@@ -167,8 +167,10 @@ modifying window properties on a system level (e.\&g.\& yabai).\&
 .RE
 \fBvisible_neighbouring_borders=<boolean>\fR
 .RS 4
-If set to \fIon\fR, borders stay ordered while switching Spaces so they remain
-visible during macOS'\&s neighbouring\-Space animation.\& \fIoff\fR is the default.\&
+If set to \fIon\fR, borders render on the current Space and its immediate
+left/right neighbours during macOS'\&s Space animation.\& Neighbouring Spaces
+keep only their outline; blur and background remain current\-Space\-only.\&
+\fIoff\fR is the default.\&
 .PP
 .RE
 \fBactive_only=<boolean>\fR

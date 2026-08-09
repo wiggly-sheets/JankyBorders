@@ -694,20 +694,17 @@ void border_update_internal(struct border* border, struct settings* settings) {
 
   uint64_t tags = window_tags(cid, border->target_wid);
   border->sticky = tags & WINDOW_TAG_STICKY;
-  bool space_visible = is_space_visible(cid, border->sid);
-  bool persist_neighbour = !border->sticky
-                           && settings->visible_neighbouring_borders
-                           && !space_visible;
-  if (!border->sticky && !space_visible) {
-    if (!settings->visible_neighbouring_borders) {
-      border_hide(border);
-      return;
-    }
-    // The persistent option keeps an already ordered surface alive while its
-    // neighbouring Space slides past. Do not create a new surface for every
-    // off-Space window when the option itself causes a full settings refresh.
-    if (!border->wid) return;
+  enum space_visibility visibility = border->sticky
+                                     ? SPACE_VISIBILITY_CURRENT
+                                     : space_visibility_for(
+                                         cid,
+                                         border->sid,
+                                         settings->visible_neighbouring_borders);
+  if (visibility == SPACE_VISIBILITY_HIDDEN) {
+    border_hide(border);
+    return;
   }
+  bool persist_neighbour = visibility == SPACE_VISIBILITY_NEIGHBOUR;
 
   // A border outline can travel with a neighbouring Space. Blur is applied to
   // a whole private window surface, not just the stroke, so retaining it here
@@ -737,7 +734,12 @@ void border_update_internal(struct border* border, struct settings* settings) {
 
   bool shown = false;
   SLSWindowIsOrderedIn(cid, border->target_wid, &shown);
-  if (!shown && !border->is_proxy) {
+  // Neighbouring-Space targets are not necessarily ordered into the current
+  // Space yet. Their border is intentionally preloaded for the slide; once
+  // the target Space is current, this remains the normal hide/minimize check.
+  if (!shown
+      && !border->is_proxy
+      && visibility == SPACE_VISIBILITY_CURRENT) {
     border_hide(border);
     return;
   } 
@@ -1060,8 +1062,10 @@ void border_unhide(struct border* border) {
       || border->is_destroyed
       || border->external_proxy_wid
       || (!border->sticky
-          && !settings->visible_neighbouring_borders
-          && !is_space_visible(border->cid, border->sid))) {
+          && space_visibility_for(border->cid,
+                                  border->sid,
+                                  settings->visible_neighbouring_borders)
+             == SPACE_VISIBILITY_HIDDEN)) {
     pthread_mutex_unlock(&border->mutex);
     return;
   }

@@ -145,10 +145,10 @@ rounded windows remain concentric with the detected window radius.
 
 ### Persistent neighbouring borders
 
-Use `visible_neighbouring_borders=on` to leave borders ordered during a Space
-switch. macOS then keeps bordering windows visible while adjacent Spaces slide
-past, instead of JankyBorders explicitly hiding them after its Space-change
-event. `off` is default.
+Use `visible_neighbouring_borders=on` to render borders on each display's
+current Space and its immediate left/right neighbours. Neighbouring Spaces keep
+only their outline while sliding; blur and background remain current-Space-only.
+All other Space surfaces are ordered out. `off` is default.
 
 #### Animating focus changes
 Focus animations are disabled by default. Enable one or more modes with a
