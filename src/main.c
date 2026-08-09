@@ -102,6 +102,9 @@ static void message_handler(void* data, uint32_t len) {
       }
       border->needs_redraw = true;
       border_update(border, true);
+      if (settings_shimmer_enabled(&border->setting_override)) {
+        animation_start_ticker();
+      }
     }
     return;
   } else {
@@ -247,6 +250,9 @@ int main(int argc, char** argv) {
 
   mach_server_begin(&g_mach_server, message_handler);
   if (!update_mask) execute_config_file("borders", "bordersrc");
+  // Startup configuration bypasses message_handler(), which is normally
+  // responsible for starting the redraw timer after enabling shimmer.
+  if (settings_shimmer_enabled(&g_settings)) animation_start_ticker();
 
   #ifdef _YABAI_INTEGRATION
   yabai_register_mach_port(&g_windows);

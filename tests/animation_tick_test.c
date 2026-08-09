@@ -56,6 +56,16 @@ int main(void) {
   assert(animating_update_count == 0);
   assert(final_update_count == 1);
 
-  puts("animation completion cleanup: ok");
+  border = (struct border) { .shimmer_last_draw = 0.0 };
+  bucket.value = &border;
+  g_settings.shimmer_color_count = 2;
+  g_settings.shimmer_fps = 1.0f;
+  final_update_count = 0;
+  animation_tick_callback(NULL, NULL);
+
+  assert(final_update_count == 1);
+  assert(border.needs_redraw);
+
+  puts("animation completion and shimmer redraw: ok");
   return 0;
 }
