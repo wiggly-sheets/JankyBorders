@@ -2,6 +2,7 @@
 #include "hashtable.h"
 #include "misc/extern.h"
 #include "windows.h"
+#include <QuartzCore/QuartzCore.h>
 #include <pthread.h>
 #include <time.h>
 
@@ -13,11 +14,14 @@ static uint64_t g_background_eviction_token = 0;
 static uint32_t border_shimmer_color(const uint32_t* colors,
                                      uint32_t count,
                                      float duration) {
-  float cycle = fmodf((float)CFAbsoluteTimeGetCurrent(), duration) / duration;
-  float position = cycle * count;
-  uint32_t index = (uint32_t)floorf(position) % count;
+  // CFAbsoluteTime is roughly 800 million seconds today. Converting it to a
+  // float loses sub-minute precision and makes the palette appear frozen.
+  // Use the monotonic display clock as a double, as the original shimmer loop
+  // effectively did, and make duration the time between adjacent colors.
+  double position = CACurrentMediaTime() / (double)duration;
+  uint32_t index = (uint32_t)floor(position) % count;
   uint32_t next = (index + 1) % count;
-  float progress = position - floorf(position);
+  float progress = (float)(position - floor(position));
   uint32_t from = colors[index];
   uint32_t to = colors[next];
   uint32_t result = 0;

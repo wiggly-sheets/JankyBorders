@@ -144,7 +144,7 @@ API, thereby being faster than comparable tools.
 	borders remain static.
 
 *shimmer_duration=<float>*
-	Seconds for one complete shimmer cycle. Default: _3.0_.
+	Seconds between adjacent shimmer colors. Default: _3.0_.
 
 *shimmer_fps=<float>*
 	Shimmer redraw rate from greater than _0_ through _120_. Default: _30_.

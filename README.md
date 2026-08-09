@@ -109,7 +109,8 @@ borders shimmer=0xffff0000,0xffffff00,0xff00ff00 shimmer_duration=3 shimmer_fps=
 
 `inactive_shimmer=` accepts a separate inactive palette. It is optional, so
 inactive borders remain static unless configured. Palettes contain 2-16 solid
-`0xAARRGGBB` colors; `shimmer_duration` defaults to 3 seconds and
+`0xAARRGGBB` colors; `shimmer_duration` is the seconds between adjacent
+colors (default 3 seconds) and
 `shimmer_fps` to 30 (maximum 120).
 
 Use `inactive_animation=fade,ramp,pulse` for an independent animation when a
