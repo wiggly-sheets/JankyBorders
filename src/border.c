@@ -995,17 +995,6 @@ void border_update(struct border* border, bool try_async) {
 
 void border_hide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
-  // Ordering out a blur host alone can leave its backdrop in WindowServer
-  // until another transaction replaces it. Clear it before hiding, including
-  // the separate companion host when configured.
-  border_set_blur_radius(border,
-                         border->wid,
-                         &border->border_blur_radius,
-                         0.0f);
-  border_set_blur_radius(border,
-                         border->background_wid,
-                         &border->background_blur_radius,
-                         0.0f);
   if (border->wid || border->background_wid) {
     CFTypeRef transaction = SLSTransactionCreate(border->cid);
     if (transaction) {
