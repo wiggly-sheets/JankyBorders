@@ -713,15 +713,11 @@ void border_update_internal(struct border* border, struct settings* settings) {
 
   uint64_t tags = window_tags(cid, border->target_wid);
   border->sticky = tags & WINDOW_TAG_STICKY;
-  if (!border->sticky && !is_space_visible(cid, border->sid)) {
-    if (!settings->visible_neighbouring_borders) {
-      border_hide(border);
-      return;
-    }
-    // The persistent option keeps an already ordered surface alive while its
-    // neighbouring Space slides past. Do not create a new surface for every
-    // off-Space window when the option itself causes a full settings refresh.
-    if (!border->wid) return;
+  if (!border->sticky
+      && !settings->visible_neighbouring_borders
+      && !is_space_visible(cid, border->sid)) {
+    border_hide(border);
+    return;
   }
 
 
