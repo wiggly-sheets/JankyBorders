@@ -692,34 +692,11 @@ void border_update_internal(struct border* border, struct settings* settings) {
   CGRect frame;
   if (!border_calculate_bounds(border, &frame, settings)) return;
 
-  uint64_t tags = window_tags(cid, border->target_wid);
-  border->sticky = tags & WINDOW_TAG_STICKY;
-  bool space_visible = is_space_visible(cid, border->sid);
-  bool persist_neighbour = !border->sticky
-                           && settings->visible_neighbouring_borders
-                           && !space_visible;
-  if (!border->sticky && !space_visible) {
-    if (!settings->visible_neighbouring_borders) {
-      border_hide(border);
-      return;
-    }
-    // The persistent option keeps an already ordered surface alive while its
-    // neighbouring Space slides past. Do not create a new surface for every
-    // off-Space window when the option itself causes a full settings refresh.
-    if (!border->wid) return;
-  }
-
-  // A border outline can travel with a neighbouring Space. Blur is applied to
-  // a whole private window surface, not just the stroke, so retaining it here
-  // leaves a blurred rectangle behind after the Space transition.
-  enum border_background_host background_host = persist_neighbour
-                                                 ? BORDER_BACKGROUND_NONE
-                                                 : border_background_host(settings,
-                                                                          border->focused);
-  float background_blur_radius = persist_neighbour
-                                 ? 0.0f
-                                 : border_background_blur_radius(settings,
-                                                                 border->focused);
+  enum border_background_host background_host = border_background_host(
+      settings,
+      border->focused);
+  float background_blur_radius = border_background_blur_radius(settings,
+                                                               border->focused);
   if (background_host != BORDER_BACKGROUND_COMPANION) {
     border_destroy_background_window(border);
   }
@@ -733,6 +710,19 @@ void border_update_internal(struct border* border, struct settings* settings) {
   }
 
   if (border->anim_origin_override) border->origin = border->anim_current_origin;
+
+  uint64_t tags = window_tags(cid, border->target_wid);
+  border->sticky = tags & WINDOW_TAG_STICKY;
+  if (!border->sticky && !is_space_visible(cid, border->sid)) {
+    if (!settings->visible_neighbouring_borders) {
+      border_hide(border);
+      return;
+    }
+    // The persistent option keeps an already ordered surface alive while its
+    // neighbouring Space slides past. Do not create a new surface for every
+    // off-Space window when the option itself causes a full settings refresh.
+    if (!border->wid) return;
+  }
 
 
   bool shown = false;
