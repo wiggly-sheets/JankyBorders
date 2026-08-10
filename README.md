@@ -143,13 +143,6 @@ With adaptive `style=round`, windows reporting a corner radius of `0` or `1`
 keep completely square corners across both layers. Double borders on normally
 rounded windows remain concentric with the detected window radius.
 
-### Persistent neighbouring borders
-
-Use `visible_neighbouring_borders=on` to leave borders ordered during a Space
-switch. macOS then keeps bordering windows visible while adjacent Spaces slide
-past, instead of JankyBorders explicitly hiding them after its Space-change
-event. `off` is default.
-
 #### Animating focus changes
 Focus animations are disabled by default. Enable one or more modes with a
 comma-separated `animation=` value:

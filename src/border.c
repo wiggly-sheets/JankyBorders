@@ -713,9 +713,7 @@ void border_update_internal(struct border* border, struct settings* settings) {
 
   uint64_t tags = window_tags(cid, border->target_wid);
   border->sticky = tags & WINDOW_TAG_STICKY;
-  if (!border->sticky
-      && !settings->visible_neighbouring_borders
-      && !is_space_visible(cid, border->sid)) {
+  if (!border->sticky && !is_space_visible(cid, border->sid)) {
     border_hide(border);
     return;
   }
@@ -1030,17 +1028,15 @@ void border_update_animating(struct border* border, float progress) {
 }
 void border_unhide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
-  struct settings* settings = border_get_settings(border);
   if (border->too_small
       || border->is_destroyed
       || border->external_proxy_wid
-      || (!border->sticky
-          && !settings->visible_neighbouring_borders
-          && !is_space_visible(border->cid, border->sid))) {
+      || (!border->sticky && !is_space_visible(border->cid, border->sid))) {
     pthread_mutex_unlock(&border->mutex);
     return;
   }
 
+  struct settings* settings = border_get_settings(border);
   border_update_internal(border, settings);
   pthread_mutex_unlock(&border->mutex);
 }

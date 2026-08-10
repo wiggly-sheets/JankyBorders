@@ -86,7 +86,6 @@ struct settings {
   int border_position;
   bool ax_focus;
   bool active_only;
-  bool visible_neighbouring_borders;
   int animation;
   int inactive_animation;
   float animation_duration;

@@ -120,10 +120,6 @@ API, thereby being faster than comparable tools.
 	accessibility permissions. Improves compatibility with other tools
 	modifying window properties on a system level (e.g. yabai).
 
-*visible_neighbouring_borders=<boolean>*
-	If set to _on_, borders stay ordered while switching Spaces so they remain
-	visible during macOS's neighbouring-Space animation. _off_ is the default.
-
 *active_only=<boolean>*
 	If set to _on_, only focused window receives a border. This reduces backing
 	surface use; _inactive_color_ has no visible effect. _off_ is default.

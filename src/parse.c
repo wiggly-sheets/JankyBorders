@@ -613,14 +613,6 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       settings->inactive_foreground = false;
       update_mask |= BORDER_UPDATE_MASK_ALL;
     }
-    else if (strcmp(arguments[i], "visible_neighbouring_borders=on") == 0) {
-      settings->visible_neighbouring_borders = true;
-      update_mask |= BORDER_UPDATE_MASK_ALL;
-    }
-    else if (strcmp(arguments[i], "visible_neighbouring_borders=off") == 0) {
-      settings->visible_neighbouring_borders = false;
-      update_mask |= BORDER_UPDATE_MASK_ALL;
-    }
     else if (strcmp(arguments[i], "toggle=on") == 0) {
       settings->enabled = !settings->enabled;
       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;

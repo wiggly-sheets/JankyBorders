@@ -397,7 +397,6 @@ void windows_draw_borders_on_current_spaces(struct table* windows) {
       struct border* border = bucket->value;
       if (border
           && !border->sticky
-          && !border_get_settings(border)->visible_neighbouring_borders
           && !is_space_visible(cid, border->sid)) {
         border_hide(border);
       }
