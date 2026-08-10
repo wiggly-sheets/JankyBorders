@@ -33,6 +33,24 @@ static uint32_t border_shimmer_color(const uint32_t* colors,
   return result;
 }
 
+static enum border_background_host border_effective_background_host(
+    const struct settings* settings,
+    bool focused,
+    enum space_visibility visibility) {
+  if (visibility == SPACE_VISIBILITY_NEIGHBOUR) {
+    return BORDER_BACKGROUND_NONE;
+  }
+
+  enum border_background_host host = border_background_host(settings, focused);
+  // A blur attached to the border host can outlive an ordered-out surface.
+  // Persistent neighbours therefore use a separate, disposable blur host.
+  if (settings->visible_neighbouring_borders
+      && host == BORDER_BACKGROUND_BORDER) {
+    return BORDER_BACKGROUND_COMPANION;
+  }
+  return host;
+}
+
 static void border_recreate_context(struct border* border) {
   if (border->context) CGContextRelease(border->context);
   border->context = border->wid
@@ -444,7 +462,10 @@ static void border_draw_multi_color(struct border* border,
   }
 }
 
-static void border_draw(struct border* border, CGRect frame, struct settings* settings) {
+static void border_draw(struct border* border,
+                        CGRect frame,
+                        struct settings* settings,
+                        enum border_background_host background_host) {
   if (!border->context) return;
   CGContextSaveGState(border->context);
   border->needs_redraw = false;
@@ -640,8 +661,7 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
   if (gradient) CGGradientRelease(gradient);
 
   if (border_background_visible(settings, border->focused)
-      && border_background_host(settings,
-                                border->focused) == BORDER_BACKGROUND_BORDER) {
+      && background_host == BORDER_BACKGROUND_BORDER) {
     CGContextRestoreGState(border->context);
     CGContextSaveGState(border->context);
     drawing_draw_filled_path(border->context,
@@ -705,14 +725,10 @@ void border_update_internal(struct border* border, struct settings* settings) {
     return;
   }
   bool persist_neighbour = visibility == SPACE_VISIBILITY_NEIGHBOUR;
-
-  // A border outline can travel with a neighbouring Space. Blur is applied to
-  // a whole private window surface, not just the stroke, so retaining it here
-  // leaves a blurred rectangle behind after the Space transition.
-  enum border_background_host background_host = persist_neighbour
-                                                 ? BORDER_BACKGROUND_NONE
-                                                 : border_background_host(settings,
-                                                                          border->focused);
+  enum border_background_host background_host = border_effective_background_host(
+      settings,
+      border->focused,
+      visibility);
   float background_blur_radius = persist_neighbour
                                  ? 0.0f
                                  : border_background_blur_radius(settings,
@@ -787,7 +803,10 @@ void border_update_internal(struct border* border, struct settings* settings) {
     border->frame = frame;
   }
 
-  if (border->needs_redraw) border_draw(border, frame, settings);
+  if (border->needs_redraw) border_draw(border,
+                                        frame,
+                                        settings,
+                                        background_host);
 
   CFTypeRef transaction = SLSTransactionCreate(cid);
   if(!transaction) return;
@@ -938,9 +957,7 @@ void border_move(struct border* border) {
   CFTypeRef transaction = SLSTransactionCreate(border->cid);
   if (transaction) {
     SLSTransactionMoveWindowWithGroup(transaction, border->wid, origin);
-    if (border->background_wid
-        && border_background_host(settings,
-                                  border->focused) == BORDER_BACKGROUND_COMPANION) {
+    if (border->background_wid) {
       SLSTransactionMoveWindowWithGroup(transaction,
                                         border->background_wid,
                                         window_frame.origin);

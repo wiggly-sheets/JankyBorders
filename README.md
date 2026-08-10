@@ -148,7 +148,9 @@ rounded windows remain concentric with the detected window radius.
 Use `visible_neighbouring_borders=on` to render borders on each display's
 current Space and its immediate left/right neighbours. Neighbouring Spaces keep
 only their outline while sliding; blur and background remain current-Space-only.
-All other Space surfaces are ordered out. `off` is default.
+When enabled, blur uses a companion host even with `background_host=border` so
+the WindowServer blur cannot remain on a departed Space. All other Space
+surfaces are ordered out. `off` is default.
 
 #### Animating focus changes
 Focus animations are disabled by default. Enable one or more modes with a

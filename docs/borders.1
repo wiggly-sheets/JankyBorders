@@ -5,7 +5,7 @@
 .nh
 .ad l
 .\" Begin generated content:
-.TH "borders" "1" "2026\-08\-09"
+.TH "borders" "1" "2026\-08\-10"
 .PP
 .SH NAME
 .PP
@@ -170,7 +170,8 @@ modifying window properties on a system level (e.\&g.\& yabai).\&
 If set to \fIon\fR, borders render on the current Space and its immediate
 left/right neighbours during macOS'\&s Space animation.\& Neighbouring Spaces
 keep only their outline; blur and background remain current\-Space\-only.\&
-\fIoff\fR is the default.\&
+Blur uses a separate companion host while enabled, preventing it from
+remaining on a departed Space.\& \fIoff\fR is the default.\&
 .PP
 .RE
 \fBactive_only=<boolean>\fR
