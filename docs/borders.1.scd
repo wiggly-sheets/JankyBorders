@@ -124,8 +124,7 @@ API, thereby being faster than comparable tools.
 	If set to _on_, borders render on the current Space and its immediate
 	left/right neighbours during macOS's Space animation. Neighbouring Spaces
 	keep only their outline; blur and background remain current-Space-only.
-	Blur uses a separate companion host while enabled, preventing it from
-	remaining on a departed Space. _off_ is the default.
+	_off_ is the default.
 
 *active_only=<boolean>*
 	If set to _on_, only focused window receives a border. This reduces backing
