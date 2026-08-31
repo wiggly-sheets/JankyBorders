@@ -11,6 +11,15 @@ extern struct table g_windows;
 
 static uint64_t g_background_eviction_token = 0;
 
+static bool border_bounds_are_valid(CGRect bounds) {
+  return isfinite(bounds.origin.x)
+         && isfinite(bounds.origin.y)
+         && isfinite(bounds.size.width)
+         && isfinite(bounds.size.height)
+         && bounds.size.width > 0.0
+         && bounds.size.height > 0.0;
+}
+
 static uint32_t border_shimmer_color(const uint32_t* colors,
                                      uint32_t count,
                                      float duration) {
@@ -244,10 +253,18 @@ static bool border_check_too_small(struct border* border, CGRect window_frame) {
   return false;
 }
 
-static bool border_calculate_bounds(struct border* border, CGRect* frame, struct settings* settings) {
-  CGRect window_frame;
-  if (border->is_proxy) window_frame = border->target_bounds;
-  else SLSGetWindowBounds(border->cid, border->target_wid, &window_frame);
+static bool border_calculate_bounds(struct border* border,
+                                    CGRect* frame,
+                                    struct settings* settings) {
+  CGRect window_frame = CGRectNull;
+  if (border->is_proxy) {
+    window_frame = border->target_bounds;
+  } else if (SLSGetWindowBounds(border->cid,
+                                border->target_wid,
+                                &window_frame) != kCGErrorSuccess) {
+    return false;
+  }
+  if (!border_bounds_are_valid(window_frame)) return false;
 
   border->target_bounds = window_frame;
   border->too_small = border_check_too_small(border, window_frame);
@@ -321,6 +338,21 @@ static float border_animation_glow_blur(struct border* border, float base) {
   return border->anim_alpha * base;
 }
 
+static void border_double_layer_centers(bool inside,
+                                        float outer_width,
+                                        float inner_width,
+                                        float gap,
+                                        float* outer_center,
+                                        float* inner_center) {
+  if (inside) {
+    *outer_center = -outer_width / 2.0f;
+    *inner_center = -(outer_width + gap + inner_width / 2.0f);
+  } else {
+    *outer_center = inner_width + gap + outer_width / 2.0f;
+    *inner_center = inner_width / 2.0f;
+  }
+}
+
 static void border_draw_double_layer(struct border* border,
                                      const struct color_style* style,
                                      CGRect frame,
@@ -331,8 +363,9 @@ static void border_draw_double_layer(struct border* border,
                                      bool square) {
   CGContextRef context = border->context;
   CGRect layer_rect = CGRectInset(path_rect, -center_offset, -center_offset);
-  float layer_corner_radius = border_layer_corner_radius(corner_radius,
-                                                         center_offset);
+  float layer_corner_radius = fmaxf(border_layer_corner_radius(corner_radius,
+                                                               center_offset),
+                                    0.0f);
   CGContextSaveGState(context);
   CGContextSetLineWidth(context, width);
 
@@ -403,6 +436,7 @@ static void border_draw_multi_color(struct border* border,
                                     float inset,
                                     float corner_radius,
                                     bool square,
+                                    bool inside,
                                     const struct color_style* style) {
   CGContextRef context = border->context;
   CGFloat band = fmaxf(-inset * 4.0f, 1.0f);
@@ -412,20 +446,20 @@ static void border_draw_multi_color(struct border* border,
   } edges[] = {
     { CGRectMake(CGRectGetMinX(path_rect) - band,
                  CGRectGetMinY(path_rect) - band,
-                 band * 2.0f,
-                 CGRectGetHeight(path_rect) + band * 2.0f), style->multi.left },
-    { CGRectMake(CGRectGetMinX(path_rect) - band,
-                 CGRectGetMinY(path_rect) - band,
                  CGRectGetWidth(path_rect) + band * 2.0f,
                  band * 2.0f), style->multi.top },
-    { CGRectMake(CGRectGetMaxX(path_rect) - band,
-                 CGRectGetMinY(path_rect) - band,
-                 band * 2.0f,
-                 CGRectGetHeight(path_rect) + band * 2.0f), style->multi.right },
     { CGRectMake(CGRectGetMinX(path_rect) - band,
                  CGRectGetMaxY(path_rect) - band,
                  CGRectGetWidth(path_rect) + band * 2.0f,
                  band * 2.0f), style->multi.bottom },
+    { CGRectMake(CGRectGetMinX(path_rect) - band,
+                 CGRectGetMinY(path_rect) - band,
+                 band * 2.0f,
+                 CGRectGetHeight(path_rect) + band * 2.0f), style->multi.left },
+    { CGRectMake(CGRectGetMaxX(path_rect) - band,
+                 CGRectGetMinY(path_rect) - band,
+                 band * 2.0f,
+                 CGRectGetHeight(path_rect) + band * 2.0f), style->multi.right },
   };
 
   for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); ++i) {
@@ -433,7 +467,12 @@ static void border_draw_multi_color(struct border* border,
     CGContextClipToRect(context, edges[i].rect);
     drawing_set_stroke_and_fill(context, edges[i].color, false);
     if (square) {
-      drawing_draw_square_with_inset(context, path_rect, inset);
+      if (inside) {
+        drawing_add_rect_with_inset(context, path_rect, 0.0f);
+        CGContextStrokePath(context);
+      } else {
+        drawing_draw_square_with_inset(context, path_rect, inset);
+      }
     } else {
       drawing_draw_rounded_rect_with_inset(context,
                                            path_rect,
@@ -467,13 +506,23 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
     };
   }
   uint32_t state_color = 0;
+  bool state_color_override = false;
   if (border->window_state == BORDER_WINDOW_STATE_STACK
-      && settings->stack_color_override) state_color = settings->stack_color;
+      && settings->stack_color_override) {
+    state_color = settings->stack_color;
+    state_color_override = true;
+  }
   else if (border->window_state == BORDER_WINDOW_STATE_FLOATING
-           && settings->floating_color_override) state_color = settings->floating_color;
+           && settings->floating_color_override) {
+    state_color = settings->floating_color;
+    state_color_override = true;
+  }
   else if (border->window_state == BORDER_WINDOW_STATE_BSP
-           && settings->bsp_color_override) state_color = settings->bsp_color;
-  if (state_color) {
+           && settings->bsp_color_override) {
+    state_color = settings->bsp_color;
+    state_color_override = true;
+  }
+  if (state_color_override) {
     appearance.layer_count = 1;
     appearance.layers[0] = (struct color_style) {
       .stype = COLOR_STYLE_SOLID, .color = state_color,
@@ -527,9 +576,11 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
   }
   CGContextClearRect(border->context, frame);
 
+  bool inside = settings->border_position == BORDER_POSITION_INSIDE;
   CGRect path_rect = border->drawing_bounds;
   CGMutablePathRef inner_clip_path = CGPathCreateMutable();
   bool square_thick_above = settings->border_style == BORDER_STYLE_SQUARE
+                            && !inside
                             && border_effective_order(settings) == BORDER_ORDER_ABOVE
                             && border_max_extent(settings) >= BORDER_TSMW;
   if (square_thick_above) {
@@ -547,7 +598,11 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                          border->inner_radius,
                          border->inner_radius             );
   }
-  drawing_clip_between_rect_and_path(border->context, frame, inner_clip_path);
+  if (!inside) {
+    drawing_clip_between_rect_and_path(border->context,
+                                       frame,
+                                       inner_clip_path);
+  }
 
   bool square = settings->border_style == BORDER_STYLE_SQUARE;
   float inset = -effective_border_width / 2.f;
@@ -555,7 +610,18 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                         ? 9.0
                         : border->radius;
 
-  if (settings->border_style == BORDER_STYLE_ROUND_UNIFORM && !is_double) {
+  if (inside && !is_double) {
+    float max_inset = fmaxf(fminf(path_rect.size.width,
+                                  path_rect.size.height) / 2.0f - 0.5f,
+                            0.0f);
+    float path_inset = fminf(effective_border_width / 2.0f, max_inset);
+    path_rect = CGRectInset(path_rect, path_inset, path_inset);
+    corner_radius = fmaxf(corner_radius - path_inset, 0.0f);
+  }
+
+  if (settings->border_style == BORDER_STYLE_ROUND_UNIFORM
+      && !inside
+      && !is_double) {
     drawing_draw_rounded_rect_with_inset(border->context,
                                          path_rect,
                                          corner_radius,
@@ -570,10 +636,14 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
     float width_scale = base_width > 0.0f ? animated_width / base_width : 1.0f;
     float outer_width = settings->border_width * width_scale;
     float inner_width = settings->inner_border_width * width_scale;
-    float inner_center = inner_width / 2.0f;
-    float outer_center = inner_width
-                         + settings->double_border_gap
-                         + outer_width / 2.0f;
+    float inner_center;
+    float outer_center;
+    border_double_layer_centers(inside,
+                                outer_width,
+                                inner_width,
+                                settings->double_border_gap,
+                                &outer_center,
+                                &inner_center);
     border_draw_double_layer(border,
                              &appearance.layers[0],
                              frame,
@@ -592,9 +662,14 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                              square);
   } else if (color_style.stype == COLOR_STYLE_SOLID) {
     if (square) {
-      drawing_draw_square_with_inset(border->context,
-                                     path_rect,
-                                     inset    );
+      if (inside) {
+        drawing_add_rect_with_inset(border->context, path_rect, 0.0f);
+        CGContextStrokePath(border->context);
+      } else {
+        drawing_draw_square_with_inset(border->context,
+                                       path_rect,
+                                       inset    );
+      }
     } else {
       drawing_draw_rounded_rect_with_inset(border->context,
                                            path_rect,
@@ -608,7 +683,7 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
       border_draw_gradient_glow(border->context,
                                 &color_style.gradient,
                                 path_rect,
-                                inset,
+                                inside && square ? 0.0f : inset,
                                 corner_radius,
                                 blur_radius,
                                 square               );
@@ -616,11 +691,22 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
 
     CGContextSaveGState(border->context);
     if (square) {
-      drawing_draw_square_gradient_with_inset(border->context,
-                                              gradient,
-                                              gradient_dir,
-                                              path_rect,
-                                              inset       );
+      if (inside) {
+        drawing_add_rect_with_inset(border->context, path_rect, 0.0f);
+        CGContextReplacePathWithStrokedPath(border->context);
+        CGContextClip(border->context);
+        CGContextDrawLinearGradient(border->context,
+                                    gradient,
+                                    gradient_dir[0],
+                                    gradient_dir[1],
+                                    0);
+      } else {
+        drawing_draw_square_gradient_with_inset(border->context,
+                                                gradient,
+                                                gradient_dir,
+                                                path_rect,
+                                                inset       );
+      }
     } else {
       drawing_draw_rounded_gradient_with_inset(border->context,
                                                gradient,
@@ -635,6 +721,7 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
                             inset,
                             corner_radius,
                             square,
+                            inside,
                             &color_style);
   }
   if (gradient) CGGradientRelease(gradient);
@@ -754,15 +841,25 @@ void border_update_internal(struct border* border, struct settings* settings) {
 
   bool disabled_update = false;
   if (!CGRectEqualToRect(frame, border->frame)) {
-    disabled_update = true;
-    SLSDisableUpdate(cid);
+    disabled_update = SLSDisableUpdate(cid) == kCGErrorSuccess;
 
-    CFTypeRef frame_region;
-    CGSNewRegionWithRect(&frame, &frame_region);
+    CFTypeRef frame_region = NULL;
+    if (CGSNewRegionWithRect(&frame, &frame_region) != kCGErrorSuccess
+        || !frame_region) {
+      goto cleanup;
+    }
 
     SLSWindowFreezeWithOptions(border->cid, border->wid, NULL);
-    SLSSetWindowShape(border->cid, border->wid, border->origin.x, border->origin.y, frame_region);
+    CGError shape_error = SLSSetWindowShape(border->cid,
+                                            border->wid,
+                                            border->origin.x,
+                                            border->origin.y,
+                                            frame_region);
     CFRelease(frame_region);
+    if (shape_error != kCGErrorSuccess) {
+      SLSWindowThaw(border->cid, border->wid);
+      goto cleanup;
+    }
     border_recreate_context(border);
 
     border->needs_redraw = true;
@@ -772,7 +869,7 @@ void border_update_internal(struct border* border, struct settings* settings) {
   if (border->needs_redraw) border_draw(border, frame, settings);
 
   CFTypeRef transaction = SLSTransactionCreate(cid);
-  if(!transaction) return;
+  if (!transaction) goto cleanup;
   SLSTransactionMoveWindowWithGroup(transaction, border->wid, border->origin);
 
   if (!border->is_proxy) {
@@ -841,6 +938,7 @@ void border_update_internal(struct border* border, struct settings* settings) {
     SLSClearWindowTags(cid, border->background_wid, &clear_tags, 0x40);
   }
 
+cleanup:
   if (disabled_update) SLSReenableUpdate(cid);
 }
 
@@ -864,6 +962,25 @@ struct border* border_create() {
   return border;
 }
 
+void border_destroy_proxy(struct border* proxy) {
+  if (!proxy) return;
+
+  pthread_mutex_lock(&proxy->mutex);
+  if (proxy->is_destroyed) {
+    pthread_mutex_unlock(&proxy->mutex);
+    return;
+  }
+  proxy->is_destroyed = true;
+  ++proxy->update_generation;
+  animation_stop(&proxy->animation);
+  border_destroy_window(proxy);
+  border_destroy_background_window(proxy);
+  settings_destroy(&proxy->setting_override);
+  pthread_mutex_unlock(&proxy->mutex);
+  pthread_mutex_destroy(&proxy->mutex);
+  free(proxy);
+}
+
 void border_destroy(struct border* border) {
   pthread_mutex_lock(&border->mutex);
   if (border->is_destroyed) {
@@ -882,10 +999,15 @@ void border_destroy(struct border* border) {
     pthread_mutex_lock(&border->mutex);
     border_destroy_window(border);
     border_destroy_background_window(border);
-    if (border->proxy) border_destroy(border->proxy);
+    if (border->proxy) {
+      struct border* proxy = border->proxy;
+      border->proxy = NULL;
+      border_destroy_proxy(proxy);
+    }
     animation_stop(&border->animation);
     if (!border->is_proxy && border->cid != SLSMainConnectionID())
       SLSReleaseConnection(border->cid);
+    settings_destroy(&border->setting_override);
     pthread_mutex_unlock(&border->mutex);
     pthread_mutex_destroy(&border->mutex);
     free(border);
@@ -907,19 +1029,27 @@ void border_move(struct border* border) {
     if (border->background_wid)
       window_send_to_space(border->cid, border->background_wid, new_sid);
   }
-  float border_extent = border_max_extent(settings);
-  CGRect window_frame;
-  SLSGetWindowBounds(border->cid, border->target_wid, &window_frame);
-  CGPoint origin = { .x = window_frame.origin.x
-                          - border_extent
-                          - BORDER_PADDING,
-                     .y = window_frame.origin.y
-                          - border_extent
-                          - BORDER_PADDING          };
+  CGRect window_frame = CGRectNull;
+  if (SLSGetWindowBounds(border->cid,
+                         border->target_wid,
+                         &window_frame) != kCGErrorSuccess
+      || !border_bounds_are_valid(window_frame)) {
+    pthread_mutex_unlock(&border->mutex);
+    return;
+  }
+  float border_offset = settings->border_position == BORDER_POSITION_INSIDE
+                        ? 0.0f
+                        : border_max_extent(settings) + BORDER_PADDING;
+  CGPoint origin = { .x = window_frame.origin.x - border_offset,
+                     .y = window_frame.origin.y - border_offset };
 
-  CFTypeRef transaction = SLSTransactionCreate(border->cid);
+  CFTypeRef transaction = border->wid || border->background_wid
+                          ? SLSTransactionCreate(border->cid)
+                          : NULL;
   if (transaction) {
-    SLSTransactionMoveWindowWithGroup(transaction, border->wid, origin);
+    if (border->wid) {
+      SLSTransactionMoveWindowWithGroup(transaction, border->wid, origin);
+    }
     if (border->background_wid
         && border_background_host(settings,
                                   border->focused) == BORDER_BACKGROUND_COMPANION) {
@@ -932,7 +1062,9 @@ void border_move(struct border* border) {
   }
   border->target_bounds = window_frame;
   border->origin = origin;
-  border->background_frame.origin = window_frame.origin;
+  if (border->background_wid) {
+    border->background_frame.origin = window_frame.origin;
+  }
   pthread_mutex_unlock(&border->mutex);
 }
 
@@ -959,7 +1091,8 @@ void border_update(struct border* border, bool try_async) {
   }
 
   struct settings* settings = border_get_settings(border);
-  __block struct settings settings_copy = *settings;
+  __block struct settings settings_copy;
+  settings_snapshot(&settings_copy, settings);
   pthread_mutex_lock(&border->mutex);
   uint64_t generation = ++border->update_generation;
   pthread_mutex_unlock(&border->mutex);
@@ -1028,10 +1161,7 @@ void border_update_animating(struct border* border, float progress) {
 }
 void border_unhide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
-  if (border->too_small
-      || border->is_destroyed
-      || border->external_proxy_wid
-      || (!border->sticky && !is_space_visible(border->cid, border->sid))) {
+  if (border->is_destroyed || border->external_proxy_wid) {
     pthread_mutex_unlock(&border->mutex);
     return;
   }

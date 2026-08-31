@@ -3,6 +3,8 @@
 #include "border.h"
 #include "misc/ax.h"
 #include <QuartzCore/QuartzCore.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <libproc.h>
 
@@ -11,6 +13,8 @@ extern struct settings g_settings;
 
 // Loaded via dlsym in main.c
 extern CFArrayRef (*JBSLSWindowIteratorGetCornerRadii)(CFTypeRef);
+
+static bool windows_border_shimmer_enabled(struct border* border);
 
 static bool window_in_list(struct table* list, char* app_name) {
   if (table_find(list, app_name)) return true;
@@ -110,6 +114,7 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
           border->sid = sid;
           if (g_settings.active_only) border->focused = true;
           border_update(border, false);
+          if (windows_border_shimmer_enabled(border)) animation_start_ticker();
           windows_update_notifications(windows);
         }
       }
@@ -203,6 +208,19 @@ static void windows_cancel_border_animation(struct border* border) {
   border->anim_alpha = 1.0f;
 }
 
+static float windows_border_frame_offset(const struct settings* settings) {
+  return settings->border_position == BORDER_POSITION_INSIDE
+         ? 0.0f
+         : -border_max_extent(settings) - BORDER_PADDING;
+}
+
+static bool windows_border_shimmer_enabled(struct border* border) {
+  struct settings* settings = border_get_settings(border);
+  return border->focused
+         ? settings->shimmer_color_count >= 2
+         : settings->inactive_shimmer_color_count >= 2;
+}
+
 static bool windows_window_focus_with_mouse_state(struct table* windows,
                                                   uint32_t wid,
                                                   bool mouse_down) {
@@ -259,7 +277,7 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
     new_focus->anim_mode = new_settings->animation;
     new_focus->anim_start = now;
     new_focus->anim_duration = new_settings->animation_duration;
-    new_focus->anim_alpha = 0.0f;
+    new_focus->anim_alpha = new_focus->animating ? 0.0f : 1.0f;
 
     if (new_settings->animation & ANIM_SLIDE) {
       CGRect old_bounds, new_bounds;
@@ -271,8 +289,8 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
                                                     &new_bounds);
       if (old_bounds_error == kCGErrorSuccess
           && new_bounds_error == kCGErrorSuccess) {
-        float old_offset = -border_max_extent(old_settings) - BORDER_PADDING;
-        float new_offset = -border_max_extent(new_settings) - BORDER_PADDING;
+        float old_offset = windows_border_frame_offset(old_settings);
+        float new_offset = windows_border_frame_offset(new_settings);
         old_bounds = CGRectInset(old_bounds, old_offset, old_offset);
         new_bounds = CGRectInset(new_bounds, new_offset, new_offset);
         new_focus->anim_start_origin = old_bounds.origin;
@@ -283,11 +301,13 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
     }
 
     new_focus->needs_redraw = true;
+    if (!new_focus->animating) border_update(new_focus, false);
     animation_start_ticker();
     return true;
   }
 
   bool found_window = false;
+  bool shimmer_enabled = false;
   for (int i = 0; i < windows->capacity; ++i) {
     struct bucket* bucket = windows->buckets[i];
     while (bucket) {
@@ -308,10 +328,13 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
         }
 
         if (border->target_wid == wid) found_window = true;
+        if (windows_border_shimmer_enabled(border)) shimmer_enabled = true;
       }
       bucket = bucket->next;
     }
   }
+
+  if (shimmer_enabled) animation_start_ticker();
 
   return found_window;
 }
@@ -349,22 +372,55 @@ bool windows_window_destroy(struct table* windows, uint32_t wid, uint32_t sid) {
 }
 
 void windows_update_notifications(struct table* windows) {
-  int window_count = 0;
-  uint32_t window_list[1024] = {};
+  size_t window_count = 0;
 
   for (int i = 0; i < windows->capacity; ++i) {
     struct bucket *bucket = windows->buckets[i];
     while (bucket) {
-      if (bucket->value) {
-        uint32_t wid = *(uint32_t *) bucket->key;
-        window_list[window_count++] = wid;
+      if (bucket->value && window_count < INT_MAX) {
+        ++window_count;
+      } else if (bucket->value) {
+        fprintf(stderr,
+                "[!] Borders: Too many windows to register notifications\n");
+        return;
       }
       bucket = bucket->next;
     }
   }
 
+  uint32_t* window_list = NULL;
+  size_t notification_count = 0;
+  if (window_count > 0) {
+    window_list = malloc(window_count * sizeof(uint32_t));
+    if (!window_list) {
+      fprintf(stderr,
+              "[!] Borders: Failed to allocate window notification list\n");
+      return;
+    }
+
+    for (int i = 0; i < windows->capacity; ++i) {
+      struct bucket *bucket = windows->buckets[i];
+      while (bucket) {
+        if (bucket->value) {
+          if (notification_count == window_count) {
+            free(window_list);
+            fprintf(stderr,
+                    "[!] Borders: Window list changed while registering"
+                    " notifications\n");
+            return;
+          }
+          window_list[notification_count++] = *(uint32_t *)bucket->key;
+        }
+        bucket = bucket->next;
+      }
+    }
+  }
+
   int cid = SLSMainConnectionID();
-  SLSRequestNotificationsForWindows(cid, window_list, window_count);
+  SLSRequestNotificationsForWindows(cid,
+                                    window_list,
+                                    (int)notification_count);
+  free(window_list);
 }
 
 void windows_determine_and_focus_active_window(struct table* windows) {

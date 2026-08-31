@@ -221,14 +221,16 @@ static inline int window_level(int cid, uint32_t wid) {
   return level;
 }
 
-static inline void window_send_to_space(int cid, uint32_t wid, uint32_t sid) {
+static inline void window_send_to_space(int cid, uint32_t wid, uint64_t sid) {
+  if (!wid || !sid) return;
   CFArrayRef window_list = cfarray_of_cfnumbers(&wid,
                                                 sizeof(uint32_t),
                                                 1,
                                                 kCFNumberSInt32Type);
-
-  SLSMoveWindowsToManagedSpace(cid, window_list, sid);
-  CFRelease(window_list);
+  if (window_list) {
+    SLSMoveWindowsToManagedSpace(cid, window_list, sid);
+    CFRelease(window_list);
+  }
 }
 
 static inline uint32_t window_create(int cid, CGRect frame, bool hidpi, bool unmanaged) {

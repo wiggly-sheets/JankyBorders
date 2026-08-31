@@ -23,7 +23,7 @@ mach_port_t mach_get_bs_port(char* bs_name) {
 }
 
 void mach_send_message(mach_port_t port, void* message, uint32_t len) {
-  if (!message || !port) return;
+  if (!message || !port || !len || len > MACH_MAX_PAYLOAD_SIZE) return;
 
   struct mach_message msg = { 0 };
   msg.header.msgh_remote_port = port;
@@ -51,11 +51,52 @@ void mach_send_message(mach_port_t port, void* message, uint32_t len) {
            MACH_PORT_NULL             );
 }
 
-void mach_message_callback(CFMachPortRef port, void* data, CFIndex size, void* context) {
-  struct mach_server* mach_server = context;
+bool mach_message_get_payload(void* data,
+                              size_t received_size,
+                              void** payload,
+                              uint32_t* payload_size) {
+  if (payload) *payload = NULL;
+  if (payload_size) *payload_size = 0;
+  if (!data || !payload || !payload_size
+      || received_size < sizeof(struct mach_message)) {
+    return false;
+  }
+
   struct mach_message* message = data;
-  mach_server->handler(message->descriptor.address, message->descriptor.size);
-  mach_msg_destroy(&message->header);
+  if (message->header.msgh_size != sizeof(struct mach_message)
+      || message->header.msgh_size > received_size
+      || !MACH_MSGH_BITS_IS_COMPLEX(message->header.msgh_bits)
+      || message->msgh_descriptor_count != 1
+      || message->descriptor.type != MACH_MSG_OOL_DESCRIPTOR
+      || !message->descriptor.address
+      || !message->descriptor.size
+      || message->descriptor.size > MACH_MAX_PAYLOAD_SIZE) {
+    return false;
+  }
+
+  *payload = message->descriptor.address;
+  *payload_size = message->descriptor.size;
+  return true;
+}
+
+void mach_message_callback(CFMachPortRef port, void* data, CFIndex size, void* context) {
+  (void)port;
+  struct mach_server* mach_server = context;
+  if (!data || size < (CFIndex)sizeof(mach_msg_header_t)) return;
+
+  struct mach_message* message = data;
+  bool destroyable = message->header.msgh_size >= sizeof(mach_msg_header_t)
+                     && message->header.msgh_size <= (mach_msg_size_t)size;
+  void* payload = NULL;
+  uint32_t payload_size = 0;
+  if (mach_server && mach_server->handler
+      && mach_message_get_payload(data,
+                                  (size_t)size,
+                                  &payload,
+                                  &payload_size)) {
+    mach_server->handler(payload, payload_size);
+  }
+  if (destroyable) mach_msg_destroy(&message->header);
 }
 
 #pragma clang diagnostic push
@@ -79,6 +120,7 @@ bool mach_register_port(mach_port_t port, char* name) {
 
 
 bool mach_server_begin(struct mach_server* mach_server, mach_handler handler) {
+  if (!mach_server || !handler) return false;
   mach_server->task = mach_task_self();
 
   if (mach_port_allocate(mach_server->task,
@@ -87,7 +129,7 @@ bool mach_server_begin(struct mach_server* mach_server, mach_handler handler) {
     return false;
   }
 
-  struct mach_port_limits limits = {};
+  struct mach_port_limits limits = { 0 };
   limits.mpl_qlimit = MACH_PORT_QLIMIT_LARGE;
 
   if (mach_port_set_attributes(mach_server->task,
@@ -95,6 +137,8 @@ bool mach_server_begin(struct mach_server* mach_server, mach_handler handler) {
                                MACH_PORT_LIMITS_INFO,
                                (mach_port_info_t)&limits,
                                MACH_PORT_LIMITS_INFO_COUNT) != KERN_SUCCESS) {
+    mach_port_destroy(mach_server->task, mach_server->port);
+    mach_server->port = MACH_PORT_NULL;
     return false;
   }
 
@@ -102,25 +146,50 @@ bool mach_server_begin(struct mach_server* mach_server, mach_handler handler) {
                              mach_server->port,
                              mach_server->port,
                              MACH_MSG_TYPE_MAKE_SEND) != KERN_SUCCESS) {
+    mach_port_destroy(mach_server->task, mach_server->port);
+    mach_server->port = MACH_PORT_NULL;
     return false;
   }
 
-  if (!mach_register_port(mach_server->port, BS_NAME)) return false;
+  if (!mach_register_port(mach_server->port, BS_NAME)) {
+    mach_port_destroy(mach_server->task, mach_server->port);
+    mach_server->port = MACH_PORT_NULL;
+    return false;
+  }
 
   mach_server->handler = handler;
   mach_server->is_running = true;
 
-  CFMachPortContext context = {0, (void*)mach_server};
+  CFMachPortContext context = {
+    .version = 0,
+    .info = (void*)mach_server,
+    .retain = NULL,
+    .release = NULL,
+    .copyDescription = NULL,
+  };
 
   CFMachPortRef cf_mach_port = CFMachPortCreateWithPort(NULL,
                                                         mach_server->port,
                                                         mach_message_callback,
                                                         &context,
                                                         false                );
+  if (!cf_mach_port) {
+    mach_port_destroy(mach_server->task, mach_server->port);
+    mach_server->port = MACH_PORT_NULL;
+    mach_server->is_running = false;
+    return false;
+  }
 
   CFRunLoopSourceRef source = CFMachPortCreateRunLoopSource(NULL,
                                                             cf_mach_port,
                                                             0            );
+  if (!source) {
+    CFRelease(cf_mach_port);
+    mach_port_destroy(mach_server->task, mach_server->port);
+    mach_server->port = MACH_PORT_NULL;
+    mach_server->is_running = false;
+    return false;
+  }
 
   CFRunLoopAddSource(CFRunLoopGetMain(), source, kCFRunLoopDefaultMode);
   CFRelease(source);

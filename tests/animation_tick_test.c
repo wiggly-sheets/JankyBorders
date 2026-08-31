@@ -56,7 +56,7 @@ int main(void) {
   assert(animating_update_count == 0);
   assert(final_update_count == 1);
 
-  border = (struct border) { .shimmer_last_draw = 0.0 };
+  border = (struct border) { .focused = true, .shimmer_last_draw = 0.0 };
   bucket.value = &border;
   g_settings.shimmer_color_count = 2;
   g_settings.shimmer_fps = 1.0f;

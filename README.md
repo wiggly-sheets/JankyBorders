@@ -110,8 +110,8 @@ borders shimmer=0xffff0000,0xffffff00,0xff00ff00 shimmer_duration=3 shimmer_fps=
 `inactive_shimmer=` accepts a separate inactive palette. It is optional, so
 inactive borders remain static unless configured. Palettes contain 2-16 solid
 `0xAARRGGBB` colors; `shimmer_duration` is the seconds between adjacent
-colors (default 3 seconds) and
-`shimmer_fps` to 30 (maximum 120).
+colors (default 3 seconds, range 1/120-3600) and `shimmer_fps` is the redraw
+rate (default 30, range 0.1-120).
 
 Use `inactive_animation=fade,ramp,pulse` for an independent animation when a
 window loses focus.
@@ -163,7 +163,7 @@ The available modes are:
 - `none` disables focus animations and should be used by itself.
 
 Comma-separated modes run simultaneously and share `animation_duration`,
-which accepts a finite positive number and defaults to `0.25` seconds. The old
+which accepts `0.01` through `60` seconds and defaults to `0.25`. The old
 border immediately switches to its inactive color; only the newly focused
 border animates. Focus changes while the primary mouse button is held are also
 applied without animation.
@@ -228,25 +228,23 @@ the target becomes visible again first.
 #### Using a configuration file (Optional)
 If the primary `borders` process is started without any arguments (or launched
 as a service by brew), it will search for a file at
-`~/.config/borders/bordersrc` and execute it on launch if found.
+`~/.config/borders/bordersrc` and read it with `/bin/sh` on launch if found.
+The file does not need executable permissions.
 
 An example configuration file could look like this:
 `~/.config/borders/bordersrc`
 ```bash
-#!/bin/bash
+#!/bin/sh
 
-options=(
-	style=round
-	width=6.0
-	hidpi=off
-	active_color=0xffe2e2e3
-	inactive_color=0xff414550
-	animation=fade,slide
-	animation_duration=0.25
+borders \
+	style=round \
+	width=6.0 \
+	hidpi=off \
+	active_color=0xffe2e2e3 \
+	inactive_color=0xff414550 \
+	animation=fade,slide \
+	animation_duration=0.25 \
 	animation_easing=ease_out_expo
-)
-
-borders "${options[@]}"
 ```
 
 #### Updating the border properties during runtime

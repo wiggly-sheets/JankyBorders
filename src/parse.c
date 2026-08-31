@@ -1,6 +1,19 @@
 #include "parse.h"
 #include "border.h"
 #include "hashtable.h"
+#include <ctype.h>
+#include <errno.h>
+
+#define SETTINGS_MAX_TOKEN_LENGTH 4096
+#define BORDER_WIDTH_MIN 0.1f
+#define BORDER_WIDTH_MAX 256.0f
+#define DOUBLE_BORDER_GAP_MAX 256.0f
+#define SHIMMER_DURATION_MIN (1.0f / 120.0f)
+#define SHIMMER_DURATION_MAX 3600.0f
+#define SHIMMER_FPS_MIN 0.1f
+#define SHIMMER_FPS_MAX 120.0f
+#define ANIMATION_DURATION_MIN 0.01f
+#define ANIMATION_DURATION_MAX 60.0f
 
 static bool str_starts_with(char* string, char* prefix) {
   if (!string || !prefix) return false;
@@ -15,9 +28,13 @@ static bool token_equals(const char* token, size_t token_length, const char* val
 }
 
 static bool parse_list(struct table* list, char* token) {
-  uint32_t token_len = strlen(token) + 1;
-  char copy[token_len];
-  memcpy(copy, token, token_len);
+  if (!list->buckets || list->capacity <= 0 || !list->hash || !list->cmp) {
+    return false;
+  }
+  size_t token_len = strlen(token);
+  if (token_len > SETTINGS_MAX_TOKEN_LENGTH) return false;
+  char copy[SETTINGS_MAX_TOKEN_LENGTH + 1];
+  memcpy(copy, token, token_len + 1);
 
   char* name;
   char* cursor = copy;
@@ -125,7 +142,8 @@ static bool parse_color_style_span(struct color_style* style,
                                    const char* end) {
   if (!start || !end || end <= start) return false;
   size_t length = (size_t)(end - start);
-  char token[length + 1];
+  if (length > SETTINGS_MAX_TOKEN_LENGTH) return false;
+  char token[SETTINGS_MAX_TOKEN_LENGTH + 1];
   memcpy(token, start, length);
   token[length] = '\0';
   return parse_color_style(style, token);
@@ -212,17 +230,67 @@ static bool parse_blur_radius(float* result,
 
 static bool parse_non_negative_float(float* result,
                                      const char* token,
-                                     const char* name) {
-  float value;
-  int consumed = 0;
-  if (sscanf(token, "%f%n", &value, &consumed) != 1
-      || consumed != (int)strlen(token)
+                                     const char* name,
+                                     float maximum) {
+  if (!token || !*token || isspace((unsigned char)token[0])) {
+    printf("[?] Borders: %s must be between 0 and %g\n", name, maximum);
+    return false;
+  }
+
+  errno = 0;
+  char* end = NULL;
+  float value = strtof(token, &end);
+  if (errno == ERANGE
+      || end == token
+      || *end != '\0'
       || !isfinite(value)
-      || value < 0.0f) {
-    printf("[?] Borders: %s must be finite and non-negative\n", name);
+      || value < 0.0f
+      || value > maximum) {
+    printf("[?] Borders: %s must be between 0 and %g\n", name, maximum);
     return false;
   }
   *result = value;
+  return true;
+}
+
+static bool parse_bounded_positive_float(float* result,
+                                         const char* token,
+                                         const char* name,
+                                         float minimum,
+                                         float maximum) {
+  if (!token || !*token || isspace((unsigned char)token[0])) {
+    printf("[?] Borders: %s must be between %g and %g\n",
+           name, minimum, maximum);
+    return false;
+  }
+
+  errno = 0;
+  char* end = NULL;
+  float value = strtof(token, &end);
+  if (errno == ERANGE
+      || end == token
+      || *end != '\0'
+      || !isfinite(value)
+      || value < minimum
+      || value > maximum) {
+    printf("[?] Borders: %s must be between %g and %g\n",
+           name, minimum, maximum);
+    return false;
+  }
+  *result = value;
+  return true;
+}
+
+static bool parse_uint32_value(uint32_t* result, const char* token) {
+  if (!token || !*token || isspace((unsigned char)token[0])) return false;
+  errno = 0;
+  char* end = NULL;
+  unsigned long value = strtoul(token, &end, 10);
+  if (errno == ERANGE
+      || end == token
+      || *end != '\0'
+      || value > UINT32_MAX) return false;
+  *result = (uint32_t)value;
   return true;
 }
 
@@ -232,8 +300,10 @@ static bool parse_shimmer_colors(uint32_t* colors,
                                  const char* name) {
   uint32_t parsed[SHIMMER_MAX_COLORS];
   uint32_t count = 0;
-  char copy[strlen(value) + 1];
-  strcpy(copy, value);
+  size_t value_length = strlen(value);
+  if (value_length > SETTINGS_MAX_TOKEN_LENGTH) return false;
+  char copy[SETTINGS_MAX_TOKEN_LENGTH + 1];
+  memcpy(copy, value, value_length + 1);
   char* cursor = copy;
   char* token;
   while ((token = strsep(&cursor, ","))) {
@@ -295,8 +365,11 @@ static bool parse_widths(struct settings* settings, const char* token) {
   int consumed = 0;
   if (sscanf(token, "double(%f,%f)%n", &outer, &inner, &consumed) == 2
       && consumed == (int)strlen(token)) {
-    if (!isfinite(outer) || !isfinite(inner) || outer <= 0.0f || inner <= 0.0f) {
-      printf("[?] Borders: double border widths must be finite and greater than zero\n");
+    if (!isfinite(outer) || !isfinite(inner)
+        || outer < BORDER_WIDTH_MIN || inner < BORDER_WIDTH_MIN
+        || outer > BORDER_WIDTH_MAX || inner > BORDER_WIDTH_MAX) {
+      printf("[?] Borders: double border widths must be between %g and %g\n",
+             BORDER_WIDTH_MIN, BORDER_WIDTH_MAX);
       return false;
     }
     settings->border_width = outer;
@@ -305,14 +378,11 @@ static bool parse_widths(struct settings* settings, const char* token) {
   }
 
   float width;
-  consumed = 0;
-  if (sscanf(token, "%f%n", &width, &consumed) != 1
-      || consumed != (int)strlen(token)
-      || !isfinite(width)
-      || width <= 0.0f) {
-    printf("[?] Borders: width must be finite and greater than zero\n");
-    return false;
-  }
+  if (!parse_bounded_positive_float(&width,
+                                    token,
+                                    "width",
+                                    BORDER_WIDTH_MIN,
+                                    BORDER_WIDTH_MAX)) return false;
   settings->border_width = width;
   settings->inner_border_width = width;
   return true;
@@ -327,9 +397,15 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
   static char blacklist[] = "blacklist=";
   static char whitelist[] = "whitelist=";
 
-  char order = 'a';
   uint32_t update_mask = 0;
   for (int i = 0; i < count; i++) {
+    if (!arguments[i]
+        || strnlen(arguments[i], SETTINGS_MAX_TOKEN_LENGTH + 1)
+           > SETTINGS_MAX_TOKEN_LENGTH) {
+      printf("[?] Borders: argument exceeds %d bytes\n",
+             SETTINGS_MAX_TOKEN_LENGTH);
+      continue;
+    }
     if (str_starts_with(arguments[i], active_color)) {
       if (parse_color(&settings->active_window,
                                  arguments[i] + strlen(active_color))) {
@@ -366,12 +442,14 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       }
     }
     else if (str_starts_with(arguments[i], blacklist)) {
+      settings_take_filter_ownership(settings);
       settings->blacklist_enabled = parse_list(&settings->blacklist,
                                                arguments[i]
                                                + strlen(blacklist));
       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
     }
     else if (str_starts_with(arguments[i], whitelist)) {
+      settings_take_filter_ownership(settings);
       settings->whitelist_enabled = parse_list(&settings->whitelist,
                                                arguments[i]
                                                + strlen(whitelist));
@@ -385,14 +463,22 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
     else if (str_starts_with(arguments[i], "double_gap=")) {
       if (parse_non_negative_float(&settings->double_border_gap,
                                    arguments[i] + strlen("double_gap="),
-                                   "double_gap")) {
+                                   "double_gap",
+                                   DOUBLE_BORDER_GAP_MAX)) {
         update_mask |= BORDER_UPDATE_MASK_ALL;
       }
     }
-    else if (sscanf(arguments[i], "order=%c", &order) == 1) {
-      if (order == 'a') settings->border_order = BORDER_ORDER_ABOVE;
-      else settings->border_order = BORDER_ORDER_BELOW;
-      update_mask |= BORDER_UPDATE_MASK_ALL;
+    else if (str_starts_with(arguments[i], "order=")) {
+      const char* order = arguments[i] + strlen("order=");
+      if (strcmp(order, "above") == 0) {
+        settings->border_order = BORDER_ORDER_ABOVE;
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+      } else if (strcmp(order, "below") == 0) {
+        settings->border_order = BORDER_ORDER_BELOW;
+        update_mask |= BORDER_UPDATE_MASK_ALL;
+      } else {
+        printf("[?] Borders: Invalid order '%s'\n", order);
+      }
     }
     else if (strcmp(arguments[i], "position=inside") == 0) {
       settings->border_position = BORDER_POSITION_INSIDE;
@@ -416,7 +502,20 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       }
       update_mask |= BORDER_UPDATE_MASK_ALL;
     }
-    else if (sscanf(arguments[i], "style=%c", &settings->border_style) == 1) {
+    else if (str_starts_with(arguments[i], "style=")) {
+      const char* style = arguments[i] + strlen("style=");
+      if (strcmp(style, "round") == 0) {
+        settings->border_style = BORDER_STYLE_ROUND;
+      } else if (strcmp(style, "uniform") == 0) {
+        settings->border_style = BORDER_STYLE_ROUND_UNIFORM;
+      } else if (strcmp(style, "square") == 0) {
+        settings->border_style = BORDER_STYLE_SQUARE;
+      } else if (strcmp(style, "none") == 0) {
+        settings->border_style = BORDER_STYLE_NONE;
+      } else {
+        printf("[?] Borders: Invalid style '%s'\n", style);
+        continue;
+      }
       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
     }
     else if (str_starts_with(arguments[i], "animation=")) {
@@ -489,22 +588,25 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
     }
     else if (str_starts_with(arguments[i], "shimmer_duration=")) {
       float duration;
-      if (sscanf(arguments[i], "shimmer_duration=%f", &duration) == 1
-          && duration > 0.0f && isfinite(duration)) {
+      if (parse_bounded_positive_float(
+              &duration,
+              arguments[i] + strlen("shimmer_duration="),
+              "shimmer_duration",
+              SHIMMER_DURATION_MIN,
+              SHIMMER_DURATION_MAX)) {
         settings->shimmer_duration = duration;
         update_mask |= BORDER_UPDATE_MASK_ALL;
-      } else {
-        printf("[?] Borders: shimmer_duration must be finite and greater than zero\n");
       }
     }
     else if (str_starts_with(arguments[i], "shimmer_fps=")) {
       float fps;
-      if (sscanf(arguments[i], "shimmer_fps=%f", &fps) == 1
-          && fps > 0.0f && isfinite(fps) && fps <= 120.0f) {
+      if (parse_bounded_positive_float(&fps,
+                                       arguments[i] + strlen("shimmer_fps="),
+                                       "shimmer_fps",
+                                       SHIMMER_FPS_MIN,
+                                       SHIMMER_FPS_MAX)) {
         settings->shimmer_fps = fps;
         update_mask |= BORDER_UPDATE_MASK_ALL;
-      } else {
-        printf("[?] Borders: shimmer_fps must be finite, 0-120\n");
       }
     }
     else if (str_starts_with(arguments[i], "stack_color=")) {
@@ -533,13 +635,14 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
     }
     else if (str_starts_with(arguments[i], "animation_duration=")) {
       float duration;
-      if (sscanf(arguments[i], "animation_duration=%f", &duration) == 1
-          && duration > 0.0f
-          && isfinite(duration)) {
+      if (parse_bounded_positive_float(
+              &duration,
+              arguments[i] + strlen("animation_duration="),
+              "animation_duration",
+              ANIMATION_DURATION_MIN,
+              ANIMATION_DURATION_MAX)) {
         settings->animation_duration = duration;
         update_mask |= BORDER_UPDATE_MASK_ANIMATION;
-      } else {
-        printf("[?] Borders: animation_duration must be finite and greater than zero\n");
       }
     }
     else if (str_starts_with(arguments[i], "animation_easing=")) {
@@ -617,8 +720,17 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
       settings->enabled = !settings->enabled;
       update_mask |= BORDER_UPDATE_MASK_RECREATE_ALL;
     }
-    else if (sscanf(arguments[i], "apply-to=%d", &settings->apply_to) == 1) {
-      update_mask |= BORDER_UPDATE_MASK_SETTING;
+    else if (str_starts_with(arguments[i], "apply-to=")) {
+      uint32_t window_id;
+      if (parse_uint32_value(&window_id,
+                             arguments[i] + strlen("apply-to="))
+          && window_id > 0) {
+        settings->apply_to = window_id;
+        update_mask |= BORDER_UPDATE_MASK_SETTING;
+      } else {
+        printf("[?] Borders: apply-to must be a window id from 1 through %u\n",
+               UINT32_MAX);
+      }
     }
     else {
       printf("[?] Borders: Invalid argument '%s'\n", arguments[i]);

@@ -110,7 +110,90 @@ struct settings {
 
   bool whitelist_enabled;
   struct table whitelist;
+
+  bool owns_filter_tables;
 };
+
+static inline void settings_reset_filter_tables(struct settings* settings) {
+  settings->blacklist = (struct table){};
+  settings->whitelist = (struct table){};
+  settings->owns_filter_tables = false;
+}
+
+static inline void settings_destroy(struct settings* settings) {
+  if (!settings || !settings->owns_filter_tables) return;
+  table_free(&settings->blacklist);
+  table_free(&settings->whitelist);
+  settings_reset_filter_tables(settings);
+}
+
+static inline void settings_init_filter_tables(struct settings* settings,
+                                               int capacity,
+                                               table_hash_func hash,
+                                               table_compare_func cmp) {
+  settings_destroy(settings);
+  table_init(&settings->blacklist, capacity, hash, cmp);
+  table_init(&settings->whitelist, capacity, hash, cmp);
+  settings->owns_filter_tables = true;
+}
+
+static inline void settings_clone_filter_table(struct table* destination,
+                                               const struct table* source) {
+  *destination = (struct table){};
+  if (!source->buckets || source->capacity <= 0) return;
+
+  table_init(destination, source->capacity, source->hash, source->cmp);
+  for (int i = 0; i < source->capacity; ++i) {
+    struct bucket* bucket = source->buckets[i];
+    while (bucket) {
+      const char* key = bucket->key;
+      _table_add(destination,
+                 bucket->key,
+                 (int)strlen(key) + 1,
+                 bucket->value);
+      bucket = bucket->next;
+    }
+  }
+}
+
+static inline void settings_clone(struct settings* destination,
+                                  const struct settings* source) {
+  *destination = *source;
+  settings_reset_filter_tables(destination);
+  settings_clone_filter_table(&destination->blacklist, &source->blacklist);
+  settings_clone_filter_table(&destination->whitelist, &source->whitelist);
+  destination->owns_filter_tables = destination->blacklist.buckets
+                                     || destination->whitelist.buckets;
+}
+
+static inline void settings_snapshot(struct settings* destination,
+                                     const struct settings* source) {
+  *destination = *source;
+  destination->owns_filter_tables = false;
+}
+
+static inline void settings_move(struct settings* destination,
+                                 struct settings* source) {
+  if (destination == source) return;
+  settings_destroy(destination);
+  *destination = *source;
+  settings_reset_filter_tables(source);
+}
+
+static inline void settings_replace(struct settings* destination,
+                                    const struct settings* source) {
+  if (destination == source) return;
+  struct settings copy;
+  settings_clone(&copy, source);
+  settings_move(destination, &copy);
+}
+
+static inline void settings_take_filter_ownership(struct settings* settings) {
+  if (settings->owns_filter_tables) return;
+  struct settings copy;
+  settings_clone(&copy, settings);
+  *settings = copy;
+}
 
 enum border_window_state {
   BORDER_WINDOW_STATE_NONE,

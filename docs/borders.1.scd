@@ -18,7 +18,8 @@ API, thereby being faster than comparable tools.
 # OPTIONS
 
 *style=<style>*
-	Specifies the style of the border (either _round_ or _square_)
+	Specifies the border style: _round_, _uniform_, _square_, or _none_.
+	_none_ disables border drawing without discarding the other settings.
 	For adaptive round borders, windows reporting a corner radius of _0_ or _1_
 	remain completely square across both double-border layers.
 
@@ -38,7 +39,7 @@ API, thereby being faster than comparable tools.
 
 *animation_duration=<seconds>*
 	Sets the duration shared by all selected focus animations in seconds.
-	The value must be finite and greater than zero. The default is _0.25_.
+	The value must be from _0.01_ through _60_. The default is _0.25_.
 
 *animation_easing=<easing>*
 	Sets the slide easing curve. Available values: _linear_,
@@ -57,7 +58,8 @@ API, thereby being faster than comparable tools.
 
 *background_color=<color>*
 	Sets the background fill color for all windows (only _0xAARRGGBB_ arguments supported).
-	The background is kept below the application window regardless of the border order.
+	With the default _background_host=auto_, the fill is kept below the application
+	window regardless of the border order. Explicit host selection can change this.
 	Acts as the fallback when a focused-state override is not configured.
 
 *active_background_color=<color>*
@@ -77,7 +79,6 @@ API, thereby being faster than comparable tools.
 *blur_radius=<float>*
 	Sets the background blur radius. Values are clamped to _50_; _0_ disables blur.
 	The blur layer remains below the application window and works with both
-	_order=above_ and _order=below_. Below-order borders reuse their existing window;
 	_order=above_ and _order=below_. Below-order borders reuse their existing window;
 	above-order borders use a companion window. Blur uses a private macOS API and
 	may affect performance. Acts as the fallback when a focused-state override is
@@ -99,11 +100,12 @@ API, thereby being faster than comparable tools.
 	Determines the width of the border. For example, width=5.0 creates a border
 	5.0 points wide. For double colors, _width=double(4.0,2.0)_ configures the
 	outer and inner widths respectively. A scalar width applies to both layers;
-	for a single color, only the first double width is used.
+	for a single color, only the first double width is used. Widths must be from
+	_0.1_ through _256_ points.
 
 *double_gap=<float>*
 	Sets the transparent gap between double-border layers. The value must be
-	finite and non-negative. The default is _0_.
+	from _0_ through _256_. The default is _0_.
 
 *position=<position>*
 	Either _outside_ (default) or _inside_. Inside borders draw within the
@@ -140,10 +142,11 @@ API, thereby being faster than comparable tools.
 	borders remain static.
 
 *shimmer_duration=<float>*
-	Seconds between adjacent shimmer colors. Default: _3.0_.
+	Seconds between adjacent shimmer colors, from _1/120_ through _3600_.
+	Default: _3.0_.
 
 *shimmer_fps=<float>*
-	Shimmer redraw rate from greater than _0_ through _120_. Default: _30_.
+	Shimmer redraw rate from _0.1_ through _120_. Default: _30_.
 
 *stack_color=<color>*, *floating_color=<color>*, *bsp_color=<color>*
 	Solid colors used when a window's external state is _stack_, _floating_, or
@@ -168,7 +171,7 @@ update the existing process with the new arguments.
 
 If no instance of *borders* is running and no arguments are supplied, we try
 to execute a file at ~/.config/borders/bordersrc where a configuration command
-could be issued.
+could be issued. The file is read by _/bin/sh_ and does not need to be executable.
 
 # NOMENCLATURE
 

@@ -7,7 +7,38 @@
 
 extern struct table g_windows;
 
+#define ANIMATION_FPS 60.0
+#define SHIMMER_MAX_FPS 120.0
+
 static CFRunLoopTimerRef g_anim_timer = NULL;
+
+static bool animation_border_shimmer_enabled(
+    const struct border* border,
+    const struct settings* settings) {
+  return border->focused
+         ? settings->shimmer_color_count >= 2
+         : settings->inactive_shimmer_color_count >= 2;
+}
+
+static double animation_required_fps(void) {
+  double fps = 0.0;
+  for (int i = 0; i < g_windows.capacity; i++) {
+    struct bucket* bucket = g_windows.buckets[i];
+    while (bucket) {
+      struct border* border = bucket->value;
+      struct settings* settings = border ? border_get_settings(border) : NULL;
+      if (border && border->animating) fps = fmax(fps, ANIMATION_FPS);
+      if (settings
+          && animation_border_shimmer_enabled(border, settings)
+          && isfinite(settings->shimmer_fps)
+          && settings->shimmer_fps > 0.0f) {
+        fps = fmax(fps, fmin(settings->shimmer_fps, SHIMMER_MAX_FPS));
+      }
+      bucket = bucket->next;
+    }
+  }
+  return fps;
+}
 
 float animation_ease(enum animation_easing easing, float progress) {
   if (progress <= 0.0f) return 0.0f;
@@ -69,7 +100,10 @@ static void animation_tick_callback(CFRunLoopTimerRef timer, void* info) {
     while (bucket) {
       struct border* border = bucket->value;
       struct settings* settings = border ? border_get_settings(border) : NULL;
-      if (settings && settings_shimmer_enabled(settings)) {
+      if (settings
+          && animation_border_shimmer_enabled(border, settings)
+          && isfinite(settings->shimmer_fps)
+          && settings->shimmer_fps > 0.0f) {
         float interval = 1.0f / settings->shimmer_fps;
         if (now - border->shimmer_last_draw >= interval) {
           border->shimmer_last_draw = now;
@@ -102,16 +136,33 @@ static void animation_tick_callback(CFRunLoopTimerRef timer, void* info) {
   }
   if (!any_animating) {
     animation_stop_ticker();
+  } else if (g_anim_timer) {
+    double fps = animation_required_fps();
+    double interval = fps > 0.0 ? 1.0 / fps : 0.0;
+    if (interval > 0.0
+        && fabs(CFRunLoopTimerGetInterval(g_anim_timer) - interval) >= 1e-6) {
+      animation_stop_ticker();
+      animation_start_ticker();
+    }
   }
 }
 
 void animation_start_ticker(void) {
-  if (g_anim_timer) return;
+  double fps = animation_required_fps();
+  if (fps <= 0.0) return;
+
+  double interval = 1.0 / fps;
+  if (g_anim_timer
+      && fabs(CFRunLoopTimerGetInterval(g_anim_timer) - interval) < 1e-6) {
+    return;
+  }
+  animation_stop_ticker();
   g_anim_timer = CFRunLoopTimerCreate(kCFAllocatorDefault,
-                                      CFAbsoluteTimeGetCurrent() + 1.0 / 60.0,
-                                      1.0 / 60.0,
+                                      CFAbsoluteTimeGetCurrent() + interval,
+                                      interval,
                                       0, 0,
                                       animation_tick_callback, NULL);
+  if (!g_anim_timer) return;
   CFRunLoopAddTimer(CFRunLoopGetMain(), g_anim_timer, kCFRunLoopCommonModes);
 }
 
