@@ -272,8 +272,10 @@ static inline bool border_background_visible(const struct settings* settings,
 static inline enum border_background_host border_background_host(
     const struct settings* settings,
     bool focused) {
-  if (!border_background_visible(settings, focused)
-      && border_background_blur_radius(settings, focused) <= 0.0f) {
+  // Blur without a visible fill leaves a transparent frosted surface:
+  // an oversized halo with order=below or a target-sized box with
+  // order=above. Gate on visibility so no such window exists.
+  if (!border_background_visible(settings, focused)) {
     return BORDER_BACKGROUND_NONE;
   }
   if (!focused && settings->inactive_foreground) {
@@ -319,9 +321,6 @@ struct border {
   bool sticky;
   enum border_window_state window_state;
   uint64_t update_generation;
-
-  bool fresh_surface;
-  bool interior_painted;
 
   // Level and sub level of the target window, refetched when stale_props is set
   bool stale_props;

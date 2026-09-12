@@ -1,5 +1,6 @@
 CC = clang
 FILES = src/main.c src/parse.c src/mach.c src/hashtable.c src/events.c src/windows.c src/border.c src/animation.c src/layer.m
+DEPS = $(wildcard src/*.h src/misc/*.h)
 LIBS = -framework AppKit -framework CoreVideo -framework QuartzCore -F/System/Library/PrivateFrameworks/ -framework SkyLight
 
 CFLAGS ?= -std=c99 -O3 -g
@@ -29,7 +30,7 @@ TEST_BINS = \
 
 all: bin/borders
 
-bin/borders: $(FILES) | bin
+bin/borders: $(FILES) $(DEPS) | bin
 	$(CC) $(CFLAGS) $(FILES) -o $@ $(LIBS)
 
 debug: bin/debug

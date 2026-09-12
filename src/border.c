@@ -490,50 +490,8 @@ static void border_draw_multi_color(struct border* border,
   }
 }
 
-static void border_clear_ring(CGContextRef context, CGRect frame, float thickness) {
-  if (frame.size.width <= 2.f * thickness
-      || frame.size.height <= 2.f * thickness) {
-    CGContextClearRect(context, frame);
-    return;
-  }
-
-  float inner_height = frame.size.height - 2.f * thickness;
-  CGRect strips[4] = {
-    { { frame.origin.x, frame.origin.y },
-      { frame.size.width, thickness } },
-    { { frame.origin.x, CGRectGetMaxY(frame) - thickness },
-      { frame.size.width, thickness } },
-    { { frame.origin.x, frame.origin.y + thickness },
-      { thickness, inner_height } },
-    { { CGRectGetMaxX(frame) - thickness, frame.origin.y + thickness },
-      { thickness, inner_height } },
-  };
-
-  for (int i = 0; i < 4; ++i) CGContextClearRect(context, strips[i]);
-}
-
-static float border_clear_thickness(struct border* border, struct settings* settings) {
-  // Stroke, padding, corner cutouts and the glow shadow all lie within this
-  // distance of the frame edge.
-  return settings->border_width + BORDER_PADDING + border->inner_radius + 12.f;
-}
-
-static void border_clear(struct border* border, CGRect frame, struct settings* settings) {
-  // A fresh backing store is transparent already; a full clear would only
-  // commit all of its interior pages.
-  bool fresh = border->fresh_surface;
-  bool dirty = border->interior_painted;
-  border->fresh_surface = false;
-  border->interior_painted = false;
-
-  if ((settings->show_background || dirty) && !fresh) {
-    CGContextClearRect(border->context, frame);
-    return;
-  }
-
-  border_clear_ring(border->context,
-                    frame,
-                    border_clear_thickness(border, settings));
+static void border_clear(struct border* border, CGRect frame) {
+  CGContextClearRect(border->context, frame);
 }
 
 static void border_draw_slow(struct border* border, CGRect frame, struct settings* settings) {
@@ -626,7 +584,7 @@ static void border_draw_slow(struct border* border, CGRect frame, struct setting
   if (!is_double) {
     CGContextSetLineWidth(border->context, effective_border_width);
   }
-  border_clear(border, frame, settings);
+  border_clear(border, frame);
 
   bool inside = settings->border_position == BORDER_POSITION_INSIDE;
   CGRect path_rect = border->drawing_bounds;
@@ -787,7 +745,6 @@ static void border_draw_slow(struct border* border, CGRect frame, struct setting
                              inner_clip_path,
                              border_background_color(settings,
                                                      border->focused));
-    border->interior_painted = true;
   }
 
   CFRelease(inner_clip_path);
@@ -864,7 +821,7 @@ static void border_draw(struct border* border, CGRect frame, struct settings* se
   CGContextSaveGState(border->context);
   border->needs_redraw = false;
 
-  border_clear(border, frame, settings);
+  border_clear(border, frame);
   drawing_draw_nine_slice(border->context, frame, &border->nine_slice);
 
   CGContextFlush(border->context);
@@ -953,7 +910,6 @@ void border_create_window(struct border* border, CGRect frame, bool unmanaged, b
   border->frame = frame;
   border->needs_redraw = true;
   border->border_blur_radius = UINT32_MAX;
-  border->fresh_surface = true;
   if (!border->use_layer) {
     border_recreate_context(border);
   }
@@ -1078,7 +1034,6 @@ void border_update_internal(struct border* border, struct settings* settings) {
     }
     if (!border->use_layer) border_recreate_context(border);
 
-    border->fresh_surface = true;
     border->needs_redraw = true;
     border->frame = frame;
   }
@@ -1280,6 +1235,27 @@ void border_move(struct border* border) {
                         : border_max_extent(settings) + BORDER_PADDING;
   CGPoint origin = { .x = window_frame.origin.x - border_offset,
                      .y = window_frame.origin.y - border_offset };
+
+  float expand = settings->border_position == BORDER_POSITION_INSIDE
+                 ? 0.0f
+                 : border_max_extent(settings) + BORDER_PADDING;
+  CGSize expected_size = CGSizeMake(window_frame.size.width + 2.0f * expand,
+                                    window_frame.size.height + 2.0f * expand);
+  bool size_changed = !border->wid
+                      || !CGSizeEqualToSize(expected_size,
+                                            border->frame.size);
+  bool background_resized
+      = border->background_wid
+        && border_background_host(settings, border->focused)
+               == BORDER_BACKGROUND_COMPANION
+        && !CGSizeEqualToSize(window_frame.size,
+                              border->background_frame.size);
+  if (size_changed || background_resized) {
+    // ponytail: sync reshape; debounced updates starve under MOVE storms
+    border_update_internal(border, settings);
+    pthread_mutex_unlock(&border->mutex);
+    return;
+  }
 
   CFTypeRef transaction = border->wid || border->background_wid
                           ? SLSTransactionCreate(border->cid)

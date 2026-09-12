@@ -113,6 +113,7 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
           border->target_wid = wid;
           border->sid = sid;
           if (g_settings.active_only) border->focused = true;
+          else border->focused = (wid == windows_active_window_id(cid));
           border_invalidate_props(border);
           border_update(border, false);
           if (windows_border_shimmer_enabled(border)) animation_start_ticker();
@@ -328,7 +329,9 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
           border->focused = true;
           border->needs_redraw = true;
           border_invalidate_props(border);
-          border_update(border, true);
+          // Focus gain can drop the host to NONE: destroy the inactive
+          // companion synchronously so no dim lingers through debounce.
+          border_update(border, false);
         }
 
         if (border->target_wid == wid) found_window = true;

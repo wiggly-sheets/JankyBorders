@@ -72,6 +72,57 @@ static inline void schedule_space_update(uint64_t delay_us) {
   });
 }
 
+// yabai swap/warp/move emits non-atomic MOVE/RESIZE pairs: MOVE syncs
+// origin-only while RESIZE lags 5ms behind, so pos jumps now and size follows
+// = 2-step tear; A also lands on B's rect before B leaves = overlap.
+// Storm = >=2 distinct MOVE wids in 30ms (swap) or MOVE+RESIZE same wid in
+// ~10ms (pos/size split). Swap storms hide + single sync after 50ms quiet
+// (yabai anim 0.05); a lone split just syncs now to skip the 5ms lag.
+// Pure single-window drags (MOVE only, same wid) stay on the fast path.
+// ponytail: fixed 50ms quiet, not yabai's live anim duration; read it live if this misfires.
+#define SWAP_STORM_NS (30 * NSEC_PER_MSEC)
+#define MOVE_RESIZE_JOIN_NS (10 * NSEC_PER_MSEC)
+#define SWAP_QUIET_US 50000
+#define SWAP_MAX_WIDS 8
+
+static struct coalesced_job g_swap_job;
+static uint32_t g_swap_wids[SWAP_MAX_WIDS];
+static int g_swap_count;
+static uint32_t g_last_move_wid;
+static uint64_t g_last_move_time;
+
+static bool swap_pending_add(uint32_t wid) {
+  for (int i = 0; i < g_swap_count; ++i) {
+    if (g_swap_wids[i] == wid) return true;
+  }
+  if (g_swap_count >= SWAP_MAX_WIDS) return false;
+  g_swap_wids[g_swap_count++] = wid;
+  return true;
+}
+
+static void swap_flush(void) {
+  uint32_t wids[SWAP_MAX_WIDS];
+  int count = g_swap_count > SWAP_MAX_WIDS ? SWAP_MAX_WIDS : g_swap_count;
+  memcpy(wids, g_swap_wids, (size_t)count * sizeof(uint32_t));
+  g_swap_count = 0;
+  for (int i = 0; i < count; ++i) {
+    struct border* border = table_find(&g_windows, &wids[i]);
+    if (border) border_update(border, false);
+  }
+}
+
+static void swap_defer(struct table* windows, uint32_t wid) {
+  if (!swap_pending_add(wid)) {
+    struct border* border = table_find(windows, &wid);
+    if (border) border_update(border, false);
+    return;
+  }
+  windows_window_hide(windows, wid);
+  schedule_coalesced(&g_swap_job, SWAP_QUIET_US, ^{
+    swap_flush();
+  });
+}
+
 #ifdef DEBUG
 static void dump_event(void* data, size_t data_length) {
   for (int i = 0; i < data_length; i++) {
@@ -135,10 +186,34 @@ static void window_modify_handler(uint32_t event, uint32_t* window_id, size_t _,
 
   if (event == EVENT_WINDOW_MOVE) {
     debug("Window Move: %d\n", wid);
-    windows_window_move(windows, wid);
+    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+    uint32_t prev_wid = g_last_move_wid;
+    uint64_t prev_time = g_last_move_time;
+    g_last_move_wid = wid;
+    g_last_move_time = now;
+    bool storm = g_swap_job.pending
+                 || (prev_wid && prev_wid != wid
+                     && now - prev_time < SWAP_STORM_NS);
+    if (!storm) {
+      windows_window_move(windows, wid);
+      return;
+    }
+    if (prev_wid && prev_wid != wid && now - prev_time < SWAP_STORM_NS) {
+      swap_defer(windows, prev_wid);
+    }
+    swap_defer(windows, wid);
   } else if (event == EVENT_WINDOW_RESIZE) {
     debug("Window Resize: %d\n", wid);
-    windows_window_update(windows, wid);
+    if (g_swap_job.pending) {
+      swap_defer(windows, wid);
+    } else if (g_last_move_wid && wid == g_last_move_wid
+               && clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - g_last_move_time
+                  < MOVE_RESIZE_JOIN_NS) {
+      struct border* border = table_find(windows, &wid);
+      if (border) border_update(border, false);
+    } else {
+      windows_window_update(windows, wid);
+    }
   } else if (event == EVENT_WINDOW_REORDER) {
     debug("Window Reorder (and focus): %d\n", wid);
     // yabai autoraise emits reorder before focus state settles. Updating here
