@@ -113,6 +113,7 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
           border->target_wid = wid;
           border->sid = sid;
           if (g_settings.active_only) border->focused = true;
+          border_invalidate_props(border);
           border_update(border, false);
           if (windows_border_shimmer_enabled(border)) animation_start_ticker();
           windows_update_notifications(windows);
@@ -154,6 +155,7 @@ void windows_update_all(struct table* windows) {
       if (bucket->value) {
         struct border* border = bucket->value;
         if (border) {
+          border_invalidate_props(border);
           border->needs_redraw = true;
           border_update(border, true);
         }
@@ -317,6 +319,7 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
           windows_cancel_border_animation(border);
           border->focused = false;
           border->needs_redraw = true;
+          border_invalidate_props(border);
           border_update(border, true);
         }
 
@@ -324,6 +327,7 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
           windows_cancel_border_animation(border);
           border->focused = true;
           border->needs_redraw = true;
+          border_invalidate_props(border);
           border_update(border, true);
         }
 
@@ -337,6 +341,14 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
   if (shimmer_enabled) animation_start_ticker();
 
   return found_window;
+}
+
+void windows_window_refresh(struct table* windows, uint32_t wid) {
+  struct border* border = table_find(windows, &wid);
+  if (border) {
+    border_invalidate_props(border);
+    border_update(border, true);
+  }
 }
 
 static bool windows_window_focus(struct table* windows, uint32_t wid) {
@@ -494,7 +506,10 @@ void windows_draw_borders_on_current_spaces(struct table* windows) {
           if (window_suitable(iterator)) {
             uint32_t wid = SLSWindowIteratorGetWindowID(iterator);
             struct border* border = table_find(windows, &wid);
-            if (border) border_update(border, true);
+            if (border) {
+              border_invalidate_props(border);
+              border_update(border, true);
+            }
             else {
               debug("Creating Missing Window: %d\n", wid);
               windows_window_create(windows, wid, window_space_id(cid, wid));

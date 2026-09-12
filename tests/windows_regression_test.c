@@ -66,6 +66,10 @@ void border_update(struct border* border, bool try_async) {
   last_updated_border = border;
 }
 
+void border_invalidate_props(struct border* border) {
+  (void)border;
+}
+
 static void add_border(struct table* windows,
                        struct bucket* bucket,
                        uint32_t* key,

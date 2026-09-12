@@ -82,6 +82,8 @@ struct settings {
   bool inactive_blur_override;
   bool inactive_foreground;
   enum border_background_mode background_mode;
+  bool show_background;
+  bool force_cg;
   int border_order;
   int border_position;
   bool ax_focus;
@@ -299,6 +301,8 @@ static inline bool border_should_update_background_placement(
   return has_background_window;
 }
 
+struct layer_border;
+
 struct event_buffer {
   bool disable_coalescing;
   volatile bool is_coalescing;
@@ -315,6 +319,17 @@ struct border {
   bool sticky;
   enum border_window_state window_state;
   uint64_t update_generation;
+
+  bool fresh_surface;
+  bool interior_painted;
+
+  // Level and sub level of the target window, refetched when stale_props is set
+  bool stale_props;
+  int level;
+  int sub_level;
+
+  bool tags_applied;
+  bool applied_sticky;
 
   uint64_t sid;
   uint32_t wid;
@@ -336,6 +351,12 @@ struct border {
   uint32_t background_color;
   uint32_t background_blur_radius;
   uint64_t background_eviction_token;
+
+  struct nine_slice_cache nine_slice;
+
+  bool use_layer;
+  struct layer_border* layer;
+  bool layer_failed;
 
   struct animation animation;
   struct event_buffer event_buffer;
@@ -377,6 +398,7 @@ void border_move(struct border* border);
 void border_update(struct border* border, bool try_async);
 void border_space_change_begin(void);
 void border_update_animating(struct border* border, float progress);
+void border_invalidate_props(struct border* border);
 void border_hide(struct border* border);
 void border_unhide(struct border* border);
 
