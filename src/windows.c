@@ -158,7 +158,7 @@ void windows_update_all(struct table* windows) {
         if (border) {
           border_invalidate_props(border);
           border->needs_redraw = true;
-          border_update(border, true);
+          border_update(border, false);
         }
       }
       bucket = bucket->next;
@@ -174,7 +174,7 @@ void windows_update_active(struct table* windows) {
         struct border* border = bucket->value;
         if (border && border->focused) {
           border->needs_redraw = true;
-          border_update(border, true);
+          border_update(border, false);
         }
       }
       bucket = bucket->next;
@@ -190,7 +190,7 @@ void windows_update_inactive(struct table* windows) {
         struct border* border = bucket->value;
         if (border && !border->focused) {
           border->needs_redraw = true;
-          border_update(border, true);
+          border_update(border, false);
         }
       }
       bucket = bucket->next;
@@ -200,7 +200,7 @@ void windows_update_inactive(struct table* windows) {
 
 void windows_window_update(struct table* windows, uint32_t wid) {
   struct border* border = table_find(windows, &wid);
-  if (border) border_update(border, true);
+  if (border) border_update(border, false);
 }
 
 static void windows_cancel_border_animation(struct border* border) {
@@ -321,7 +321,7 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
           border->focused = false;
           border->needs_redraw = true;
           border_invalidate_props(border);
-          border_update(border, true);
+          border_update(border, false);
         }
 
         if (!border->focused && border->target_wid == wid) {
@@ -350,7 +350,7 @@ void windows_window_refresh(struct table* windows, uint32_t wid) {
   struct border* border = table_find(windows, &wid);
   if (border) {
     border_invalidate_props(border);
-    border_update(border, true);
+    border_update(border, false);
   }
 }
 
@@ -511,7 +511,7 @@ void windows_draw_borders_on_current_spaces(struct table* windows) {
             struct border* border = table_find(windows, &wid);
             if (border) {
               border_invalidate_props(border);
-              border_update(border, true);
+              border_update(border, false);
             }
             else {
               debug("Creating Missing Window: %d\n", wid);
