@@ -94,7 +94,7 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
             window_created = true;
           }
 
-          int32_t detected_radius = BORDER_DEFAULT_RADIUS;
+          double detected_radius = BORDER_DEFAULT_RADIUS;
 
           // Determine window corner radius
           if (JBSLSWindowIteratorGetCornerRadii) {
@@ -102,7 +102,7 @@ bool windows_window_create(struct table* windows, uint32_t wid, uint64_t sid) {
             if (radii_ref && CFArrayGetCount(radii_ref) > 0) {
               CFNumberRef value = CFArrayGetValueAtIndex(radii_ref, 0);
               if (!CFNumberGetValue(value,
-                                    kCFNumberSInt32Type,
+                                    kCFNumberFloat64Type,
                                     &detected_radius)) {
                 detected_radius = BORDER_DEFAULT_RADIUS;
               }

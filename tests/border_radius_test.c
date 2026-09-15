@@ -8,7 +8,7 @@ static void assert_close(float actual, float expected) {
   assert(fabsf(actual - expected) < 0.0001f);
 }
 
-static void assert_radii(int32_t detected_radius,
+static void assert_radii(double detected_radius,
                          float expected_outer,
                          float expected_inner) {
   struct border border = {};
@@ -23,6 +23,7 @@ int main(void) {
   assert_radii(12, 12.0f, 13.0f);
   assert_radii(17, 17.0f, 18.0f);
   assert_radii(-1, BORDER_DEFAULT_RADIUS, BORDER_DEFAULT_RADIUS + 1.0f);
+  assert_radii(0.1, 0.0f, BORDER_TSMN);
 
   assert_close(border_layer_corner_radius(0.0f, 1.0f), 0.0f);
   assert_close(border_layer_corner_radius(0.0f, 8.0f), 0.0f);

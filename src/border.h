@@ -380,14 +380,14 @@ struct border {
 };
 
 static inline void border_set_detected_radius(struct border* border,
-                                              int32_t detected_radius) {
+                                              double detected_radius) {
   if (detected_radius < 0) detected_radius = BORDER_DEFAULT_RADIUS;
 
   bool nearly_square = detected_radius <= 1;
-  border->radius = nearly_square ? 0.0f : detected_radius;
+  border->radius = nearly_square ? 0.0f : (float)detected_radius;
   border->inner_radius = nearly_square
                          ? BORDER_TSMN
-                         : detected_radius + 1.0f;
+                         : (float)detected_radius + 1.0f;
 }
 
 struct border* border_create();
