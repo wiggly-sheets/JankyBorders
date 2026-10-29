@@ -609,6 +609,16 @@ uint32_t parse_settings(struct settings* settings, int count, char** arguments) 
         update_mask |= BORDER_UPDATE_MASK_ALL;
       }
     }
+    else if (str_starts_with(arguments[i], "fade_duration=")) {
+      float duration;
+      if (parse_non_negative_float(&duration,
+                                   arguments[i] + strlen("fade_duration="),
+                                   "fade_duration",
+                                   ANIMATION_DURATION_MAX)) {
+        settings->fade_duration = duration;
+        update_mask |= BORDER_UPDATE_MASK_SETTING;
+      }
+    }
     else if (str_starts_with(arguments[i], "stack_color=")) {
       if (parse_state_color(&settings->stack_color, &settings->stack_color_override,
                             arguments[i] + strlen("stack_color="), "stack_color"))

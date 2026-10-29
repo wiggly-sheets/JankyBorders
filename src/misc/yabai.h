@@ -118,7 +118,9 @@ static void* yabai_proxy_begin_proc(void* context) {
   proxy->frame = CGRectNull;
   border_update_internal(proxy, &info->settings);
 
-  CFTypeRef transaction = SLSTransactionCreate(proxy->cid);
+  CFTypeRef transaction = (g_mission_control_active && info->settings.hide_on_mc)
+                          ? NULL
+                          : SLSTransactionCreate(proxy->cid);
   if (transaction) {
     SLSTransactionOrderWindow(transaction,
                               proxy->wid,

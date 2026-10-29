@@ -39,6 +39,27 @@ static inline void colors_mix(uint32_t color1,
   }
 }
 
+static inline uint32_t colors_lerp(uint32_t from, uint32_t to, float t) {
+  float a1, r1, g1, b1;
+  float a2, r2, g2, b2;
+  colors_from_hex(from, &a1, &r1, &g1, &b1);
+  colors_from_hex(to, &a2, &r2, &g2, &b2);
+
+  r1 *= a1; g1 *= a1; b1 *= a1;
+  r2 *= a2; g2 *= a2; b2 *= a2;
+
+  float a = a1 + t * (a2 - a1);
+  float r = r1 + t * (r2 - r1);
+  float g = g1 + t * (g2 - g1);
+  float b = b1 + t * (b2 - b1);
+
+  uint32_t ia = (uint32_t)lroundf(fmaxf(0.f, fminf(a * 255.f, 255.f)));
+  uint32_t ir = (uint32_t)lroundf(fmaxf(0.f, fminf(r * 255.f, 255.f)));
+  uint32_t ig = (uint32_t)lroundf(fmaxf(0.f, fminf(g * 255.f, 255.f)));
+  uint32_t ib = (uint32_t)lroundf(fmaxf(0.f, fminf(b * 255.f, 255.f)));
+  return (ia << 24) | (ir << 16) | (ig << 8) | ib;
+}
+
 static inline void drawing_set_fill(CGContextRef context, uint32_t color) {
   float a,r,g,b;
   colors_from_hex(color, &a, &r, &g, &b);

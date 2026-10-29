@@ -538,6 +538,22 @@ static void border_draw_slow(struct border* border, CGRect frame, struct setting
       .stype = COLOR_STYLE_SOLID, .color = state_color,
     };
   }
+
+  if (settings->fade_duration > 0.0f && appearance.layer_count > 0) {
+    struct color_style* layer = &appearance.layers[0];
+    struct color_style inactive_layer = settings->inactive_window.layers[0];
+    struct color_style active_layer = settings->active_window.layers[0];
+    float t = border->focus_level;
+    if (layer->stype == COLOR_STYLE_SOLID && inactive_layer.stype == COLOR_STYLE_SOLID && active_layer.stype == COLOR_STYLE_SOLID) {
+      layer->color = colors_lerp(inactive_layer.color, active_layer.color, t);
+      layer->glow = inactive_layer.glow || active_layer.glow;
+    } else if (layer->stype == COLOR_STYLE_GRADIENT && inactive_layer.stype == COLOR_STYLE_GRADIENT && active_layer.stype == COLOR_STYLE_GRADIENT) {
+      layer->gradient.color1 = colors_lerp(inactive_layer.gradient.color1, active_layer.gradient.color1, t);
+      layer->gradient.color2 = colors_lerp(inactive_layer.gradient.color2, active_layer.gradient.color2, t);
+      layer->glow = inactive_layer.glow || active_layer.glow;
+    }
+  }
+
   bool is_double = appearance.layer_count == 2;
   struct color_style color_style = appearance.layers[0];
   float base_extent = border_appearance_extent(settings, border->focused);
@@ -920,10 +936,31 @@ void border_create_window(struct border* border, CGRect frame, bool unmanaged, b
 }
 
 void border_update_internal(struct border* border, struct settings* settings) {
+  if (g_mission_control_active && settings->hide_on_mc) return;
   if (border->external_proxy_wid) {
     border->stale_props = true;
     return;
   }
+
+  if (settings->fade_duration > 0.0f) {
+    CFTimeInterval now = CACurrentMediaTime();
+    if (border->fade_timer) {
+      CFTimeInterval elapsed = now - border->anim_start;
+      float progress = elapsed / settings->fade_duration;
+      if (progress >= 1.0f) {
+        progress = 1.0f;
+        dispatch_source_cancel(border->fade_timer);
+        border->fade_timer = NULL;
+      }
+      border->focus_level = border->focused ? progress : 1.0f - progress;
+      border->needs_redraw = true;
+    } else if (border->focused) {
+      border->focus_level = 1.0f;
+    }
+  } else {
+    border->focus_level = border->focused ? 1.0f : 0.0f;
+  }
+
   if (!settings->enabled) {
     border_hide(border);
     return;
@@ -1038,11 +1075,23 @@ void border_update_internal(struct border* border, struct settings* settings) {
     border->frame = frame;
   }
 
-  if (border->use_layer
-      && (!border_layer_style_expressible(border, settings)
-          || !border_layer_draw(border, frame, settings))) {
+  bool want_layer = !settings->force_cg
+                     && border_layer_style_expressible(border, settings)
+                     && !border->layer_failed
+                     && !border->is_proxy;
+  if ((want_layer != border->use_layer)
+      || (border->use_layer
+          && (!border_layer_style_expressible(border, settings)
+              || !border_layer_draw(border, frame, settings)))) {
+    bool was_layer = border->use_layer;
+    bool recreate_due_to_swap = (want_layer != was_layer);
     border_destroy_window(border);
     border_create_window(border, frame, border->is_proxy, settings->hidpi);
+    if (recreate_due_to_swap && border->use_layer) {
+      if (border_layer_style_expressible(border, settings)) {
+        border_layer_draw(border, frame, settings);
+      }
+    }
   }
 
   if (!border->use_layer && border->needs_redraw) {
@@ -1198,6 +1247,10 @@ void border_destroy(struct border* border) {
       border_destroy_proxy(proxy);
     }
     animation_stop(&border->animation);
+    if (border->fade_timer) {
+      dispatch_source_cancel(border->fade_timer);
+      border->fade_timer = NULL;
+    }
     if (!border->is_proxy && border->cid != SLSMainConnectionID())
       SLSReleaseConnection(border->cid);
     settings_destroy(&border->setting_override);
@@ -1375,12 +1428,14 @@ void border_update_animating(struct border* border, float progress) {
 }
 void border_unhide(struct border* border) {
   pthread_mutex_lock(&border->mutex);
-  if (border->is_destroyed || border->external_proxy_wid) {
+  struct settings* settings = border_get_settings(border);
+  if (border->is_destroyed
+      || border->external_proxy_wid
+      || (g_mission_control_active && settings->hide_on_mc)) {
     pthread_mutex_unlock(&border->mutex);
     return;
   }
 
-  struct settings* settings = border_get_settings(border);
   border_update_internal(border, settings);
   pthread_mutex_unlock(&border->mutex);
 }

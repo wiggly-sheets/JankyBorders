@@ -99,6 +99,7 @@ struct settings {
   uint32_t inactive_shimmer_color_count;
   float shimmer_duration;
   float shimmer_fps;
+  float fade_duration;
   uint32_t stack_color;
   uint32_t floating_color;
   uint32_t bsp_color;
@@ -107,13 +108,16 @@ struct settings {
   bool bsp_color_override;
   int window_state;
 
-  bool blacklist_enabled;
-  struct table blacklist;
+   bool blacklist_enabled;
+   struct table blacklist;
 
-  bool whitelist_enabled;
-  struct table whitelist;
+   bool whitelist_enabled;
+   struct table whitelist;
 
-  bool owns_filter_tables;
+   bool owns_filter_tables;
+
+   bool hide_on_mc;
+   bool hide_on_expose;
 };
 
 static inline void settings_reset_filter_tables(struct settings* settings) {
@@ -370,6 +374,8 @@ struct border {
   float anim_alpha;
   float anim_stroke_width;
   CFTimeInterval shimmer_last_draw;
+  float focus_level;
+  dispatch_source_t fade_timer;
 
   bool is_proxy;
   bool is_destroyed;
