@@ -20,15 +20,23 @@ static inline bool window_suitable(CFTypeRef iterator) {
   uint64_t tags = SLSWindowIteratorGetTags(iterator);
   uint64_t attributes = SLSWindowIteratorGetAttributes(iterator);
   uint32_t parent_wid = SLSWindowIteratorGetParentID(iterator);
-  if ((parent_wid == 0)
-       && ((attributes & 0x2) || (tags & 0x400000000000000))
-       && !(tags & WINDOW_TAG_ATTACHED)
-       && !(tags & WINDOW_TAG_IGNORES_CYCLE)
-       && ((tags & WINDOW_TAG_DOCUMENT) || ((tags & WINDOW_TAG_FLOATING)
-                                            && (tags & WINDOW_TAG_MODAL)))) {
+  if (parent_wid != 0
+      || !((attributes & 0x2) || (tags & 0x400000000000000))
+      || (tags & WINDOW_TAG_ATTACHED)) {
+    return false;
+  }
+
+  // Some normal application windows (including Mail, iTerm, and Ghostty variants)
+  // opt out of system window cycling and set WINDOW_TAG_IGNORES_CYCLE. Keep real
+  // document windows, and use that tag only to reject transient floating/modal
+  // UI (e.g., IDE tooltips and quick-add overlays).
+  if (tags & WINDOW_TAG_DOCUMENT) {
     return true;
   }
-  return false;
+
+  return (tags & WINDOW_TAG_FLOATING)
+         && (tags & WINDOW_TAG_MODAL)
+         && !(tags & WINDOW_TAG_IGNORES_CYCLE);
 }
 
 static inline uint64_t window_tags(int cid, uint32_t wid) {

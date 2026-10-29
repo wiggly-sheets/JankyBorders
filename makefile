@@ -24,7 +24,10 @@ TEST_BINS = \
 	$(TEST_BIN_DIR)/parser-bounds \
 	$(TEST_BIN_DIR)/message-payload \
 	$(TEST_BIN_DIR)/config-execution \
-	$(TEST_BIN_DIR)/mach-message
+	$(TEST_BIN_DIR)/mach-message \
+	$(TEST_BIN_DIR)/space-recovery \
+	$(TEST_BIN_DIR)/focus-recovery \
+	$(TEST_BIN_DIR)/renderer-swap
 
 .PHONY: all debug test asan check clean $(TEST_BINS)
 
@@ -63,8 +66,8 @@ $(TEST_BIN_DIR)/animation-tick: tests/animation_tick_test.c | $(TEST_BIN_DIR)
 $(TEST_BIN_DIR)/animation-parse: tests/animation_parse_test.c src/hashtable.c | $(TEST_BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -ffunction-sections $^ $(TEST_LDFLAGS) -Wl,-dead_strip $(LIBS) -o $@
 
-$(TEST_BIN_DIR)/windows-regression: tests/windows_regression_test.c | $(TEST_BIN_DIR)
-	$(CC) $(TEST_CFLAGS) -ffunction-sections $< $(TEST_LDFLAGS) -Wl,-dead_strip $(LIBS) -o $@
+$(TEST_BIN_DIR)/windows-regression: tests/windows_regression_test.c src/hashtable.c | $(TEST_BIN_DIR)
+	$(CC) $(TEST_CFLAGS) -ffunction-sections $^ $(TEST_LDFLAGS) -Wl,-dead_strip $(LIBS) -o $@
 
 $(TEST_BIN_DIR)/shimmer-state: tests/shimmer_state_test.c | $(TEST_BIN_DIR)
 	$(CC) $(TEST_CFLAGS) -ffunction-sections $< $(TEST_LDFLAGS) -Wl,-dead_strip $(LIBS) -o $@
@@ -89,6 +92,15 @@ $(TEST_BIN_DIR)/config-execution: tests/config_execution_test.c | $(TEST_BIN_DIR
 
 $(TEST_BIN_DIR)/mach-message: tests/mach_message_test.c src/mach.c | $(TEST_BIN_DIR)
 	$(CC) $(TEST_CFLAGS) $^ $(TEST_LDFLAGS) $(LIBS) -o $@
+
+$(TEST_BIN_DIR)/space-recovery: tests/space_recovery_test.c | $(TEST_BIN_DIR)
+	$(CC) $(TEST_CFLAGS) $< $(TEST_LDFLAGS) $(LIBS) -o $@
+
+$(TEST_BIN_DIR)/focus-recovery: tests/focus_recovery_test.c | $(TEST_BIN_DIR)
+	$(CC) $(TEST_CFLAGS) $< $(TEST_LDFLAGS) $(LIBS) -o $@
+
+$(TEST_BIN_DIR)/renderer-swap: tests/renderer_swap_test.c | $(TEST_BIN_DIR)
+	$(CC) $(TEST_CFLAGS) $< $(TEST_LDFLAGS) $(LIBS) -o $@
 
 bin:
 	mkdir -p $@

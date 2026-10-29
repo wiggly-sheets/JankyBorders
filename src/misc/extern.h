@@ -35,7 +35,7 @@ extern CGError SLSGetWindowTransform(int cid, uint32_t wid, CGAffineTransform* t
 extern CGError SLSSetWindowTransform(int cid, uint32_t wid, CGAffineTransform transform);
 
 extern CGError SLSWindowSetShadowProperties(uint32_t wid, CFDictionaryRef properties);
-extern CGError SLSGetWindowLevel(int cid, uint32_t wid, int64_t* level_out);
+extern CGError SLSGetWindowLevel(int cid, uint32_t wid, int* level_out);
 extern int32_t SLSGetWindowSubLevel(int cid, uint32_t wid);
 extern CGError SLSMoveWindowsToManagedSpace(int cid, CFArrayRef window_list, uint64_t sid);
 extern CGContextRef SLWindowContextCreate(int cid, uint32_t wid, CFDictionaryRef options);
@@ -80,6 +80,8 @@ extern CFArrayRef SLSCopyManagedDisplays(int cid);
 extern CFArrayRef SLSCopyManagedDisplaySpaces(int cid);
 extern CFStringRef SLSCopyManagedDisplayForWindow(int cid, uint32_t wid);
 extern uint64_t SLSManagedDisplayGetCurrentSpace(int cid, CFStringRef uuid);
+extern uint32_t SLSSpaceGetType(int cid, uint64_t sid);
 extern CFStringRef SLSCopyActiveMenuBarDisplayIdentifier(int cid);
+extern uint64_t SLSGetActiveSpace(int cid);
 
 extern CGError SLSFlushWindowContentRegion(int cid, uint32_t wid, void* dirty);

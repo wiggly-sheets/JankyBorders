@@ -16,26 +16,26 @@ and [man-page source](https://github.com/FelixKratz/JankyBorders/blob/a7297ca7d1
 
 ## Quick index
 
-| Control or capability | Upstream status | Default | Runtime change |
-| --- | --- | --- | --- |
-| Double borders: `double(...)`, `width=double(...)`, `double_gap` | Local `codex/double-borders` branch only; not upstream | Disabled; gap `0` | Immediate redraw of affected borders |
-| Combined glow gradients: `glow(gradient(...))` | Local `feature/glow-gradient` branch and descendants only; not upstream | Disabled | Immediate redraw of matching focus state |
-| Focus animations: `animation`, `animation_duration`, `animation_easing` | Local `feature/border-animation` branch and descendants only; not upstream | Disabled; `0.25` seconds; `linear` | Used on later focus changes |
-| Focus-aware background and blur controls | Local `codex/background-blur` branch and descendants only; not upstream | Transparent; blur `0` | Immediate redraw and layer update |
-| `background_host=auto\|border\|companion` | Local only; not upstream | `auto` | Immediate redraw and layer update |
-| `renderer=layer\|cg` | Local only; not upstream | `layer` (auto-falls back to CG when blur is active) | Recreates all borders |
-| `inactive_foreground=on\|off` | Local only; not upstream | `off` | Immediate redraw and layer update |
-| Adaptive squaring for detected radius `0` or `1` | Local `codex/adaptive-square-radius` branch and descendants only; not upstream | Automatic | Applied when radius geometry is detected |
-| `order=below` / `order=above` | Implemented, explicitly unsupported and undocumented | `below` | Immediate redraw of all borders |
-| `apply-to=<window-id>` | Implemented, undocumented | None | Applies an override to one existing border |
-| `style=uniform` | Implemented; named only in the man page's value glossary | `round` | Immediate redraw of all borders |
-| `-v`, `--version` | Implemented, undocumented | N/A | Prints and exits |
-| `-h`, `--help` | Implemented, undocumented | N/A | Prints a man-page pointer and exits |
-| Border-window shadow suppression | Always enabled, no option | Shadow disabled | Requires border-window recreation to differ; no supported way to do so |
-| yabai animation-proxy tracking | Built in, no option | Enabled | Event driven |
-| macOS 26 per-window radius detection | Built in, no option | Automatic | Applied when a border is created |
-| Sticky-window following | Built in, no option | Automatic | Refreshed during border updates |
-| Ignore-cycle window filtering | Built in, no option | Enabled | Applied when deciding whether a window is suitable |
+| Control or capability                                                   | Upstream status                                                                | Default                                             | Runtime change                                                         |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------- | ---------------------------------------------------------------------- |
+| Double borders: `double(...)`, `width=double(...)`, `double_gap`        | Local `codex/double-borders` branch only; not upstream                         | Disabled; gap `0`                                   | Immediate redraw of affected borders                                   |
+| Combined glow gradients: `glow(gradient(...))`                          | Local `feature/glow-gradient` branch and descendants only; not upstream        | Disabled                                            | Immediate redraw of matching focus state                               |
+| Focus animations: `animation`, `animation_duration`, `animation_easing` | Local `feature/border-animation` branch and descendants only; not upstream     | Disabled; `0.25` seconds; `linear`                  | Used on later focus changes                                            |
+| Focus-aware background and blur controls                                | Local `codex/background-blur` branch and descendants only; not upstream        | Transparent; blur `0`                               | Immediate redraw and layer update                                      |
+| `background_host=auto\|border\|companion`                               | Local only; not upstream                                                       | `auto`                                              | Immediate redraw and layer update                                      |
+| `renderer=layer\|cg`                                                    | Local only; not upstream                                                       | `layer` (auto-falls back to CG when blur is active) | Recreates all borders                                                  |
+| `inactive_foreground=on\|off`                                           | Local only; not upstream                                                       | `off`                                               | Immediate redraw and layer update                                      |
+| Adaptive squaring for detected radius `0` or `1`                        | Local `codex/adaptive-square-radius` branch and descendants only; not upstream | Automatic                                           | Applied when radius geometry is detected                               |
+| `order=below` / `order=above`                                           | Implemented, explicitly unsupported and undocumented                           | `below`                                             | Immediate redraw of all borders                                        |
+| `apply-to=<window-id>`                                                  | Implemented, undocumented                                                      | None                                                | Applies an override to one existing border                             |
+| `style=uniform`                                                         | Implemented; named only in the man page's value glossary                       | `round`                                             | Immediate redraw of all borders                                        |
+| `-v`, `--version`                                                       | Implemented, undocumented                                                      | N/A                                                 | Prints and exits                                                       |
+| `-h`, `--help`                                                          | Implemented, undocumented                                                      | N/A                                                 | Prints a man-page pointer and exits                                    |
+| Border-window shadow suppression                                        | Always enabled, no option                                                      | Shadow disabled                                     | Requires border-window recreation to differ; no supported way to do so |
+| yabai animation-proxy tracking                                          | Built in, no option                                                            | Enabled                                             | Event driven                                                           |
+| macOS 26 per-window radius detection                                    | Built in, no option                                                            | Automatic                                           | Applied when a border is created                                       |
+| Sticky-window following                                                 | Built in, no option                                                            | Automatic                                           | Refreshed during border updates                                        |
+| Ignore-cycle window filtering                                           | Built in, no option                                                            | Enabled                                             | Applied when deciding whether a window is suitable                     |
 
 ## Local branch capabilities
 

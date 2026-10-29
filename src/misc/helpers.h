@@ -1,7 +1,9 @@
 #pragma once
+#include "config.h"
 #include "extern.h"
 #include "sys/stat.h"
 #include "ApplicationServices/ApplicationServices.h"
+#include <errno.h>
 #include <stdlib.h>
 
 static inline void debug(const char* message, ...) {
@@ -29,26 +31,12 @@ static inline bool file_exists(const char* filename) {
 }
 
 static inline void execute_config_file(const char* name, const char* filename) {
-  const char* home_directory = getenv("HOME");
-  if (!home_directory || !name || !filename) return;
+  if (!name || !filename) return;
 
-  size_t home_length = strlen(home_directory);
-  size_t name_length = strlen(name);
-  size_t filename_length = strlen(filename);
-  if (home_length > SIZE_MAX - name_length - filename_length - 12) return;
-
-  size_t size = home_length + name_length + filename_length + 12;
-  char* path = malloc(size);
-  if (!path) return;
-
-  snprintf(path, size, "%s/.config/%s/%s", home_directory, name, filename);
-  if (!file_exists(path)) {
-    snprintf(path, size, "%s/.%s", home_directory, filename);
-    if (!file_exists(path)) {
-      debug("No config file found...\n");
-      free(path);
-      return;
-    };
+  char path[PATH_MAX];
+  if (!config_file_path(name, filename, path, sizeof(path))) {
+    debug("No config file found...\n");
+    return;
   }
 
   signal(SIGCHLD, SIG_IGN);
@@ -57,17 +45,17 @@ static inline void execute_config_file(const char* name, const char* filename) {
   pid_t pid = fork();
   if (pid < 0) {
     printf("[!] Failed to execute config at '%s'...\n", path);
-    free(path);
     return;
   }
-  if (pid > 0) {
-    free(path);
-    return;
-  }
+  if (pid > 0) return;
 
   alarm(60);
-  char* arguments[] = { "/bin/sh", path, NULL };
-  execv(arguments[0], arguments);
+  execv(path, (char*[]){ path, NULL });
+  // Not a binary, or not executable: interpret it as a shell script.
+  if (errno == ENOEXEC || errno == EACCES) {
+    char* arguments[] = { (char*)"/bin/sh", path, NULL };
+    execv(arguments[0], arguments);
+  }
   _exit(EXIT_FAILURE);
 }
 
