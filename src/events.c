@@ -163,7 +163,19 @@ static void window_spawn_handler(uint32_t event,
   uint32_t wid = spawn_data.wid;
   uint64_t sid = spawn_data.sid;
 
-  if (!wid || !sid || is_own_window(cid, wid)) return;
+  if (!wid) return;
+
+  // Mission Control backdrops are overlays, not Space windows, so their spawn
+  // events carry sid == 0. These hooks have to run ahead of the sid/own-window
+  // guard below or detection never fires at all; the predicate validates level,
+  // owner and display bounds on its own, so it is safe on any window here.
+  if (event == EVENT_WINDOW_CREATE) {
+    windows_mission_control_window_created(cid, wid);
+  } else if (event == EVENT_WINDOW_DESTROY) {
+    windows_mission_control_window_destroyed(cid, wid);
+  }
+
+  if (!sid || is_own_window(cid, wid)) return;
 
   if (event == EVENT_WINDOW_CREATE) {
     if (windows_window_create(windows, wid, sid)) {
@@ -223,6 +235,11 @@ static void window_modify_handler(uint32_t event, uint32_t* window_id, size_t _,
     schedule_focus_update(10000);
   } else if (event == EVENT_WINDOW_LEVEL) {
     debug("Window Level: %d\n", wid);
+    // On this macOS 27 build the WindowManager backdrop's create event is not
+    // delivered to this connection, but its level-change event is. Reuse the
+    // same strict owner/bounds/level predicate used for spawn events so an
+    // ordinary application's level change cannot enter Mission Control.
+    windows_mission_control_window_level_changed(cid, wid);
     windows_window_refresh(windows, wid);
   } else if (event == EVENT_WINDOW_TITLE || event == EVENT_WINDOW_UPDATE) {
     debug("Window Focus\n");
@@ -239,7 +256,12 @@ static void window_modify_handler(uint32_t event, uint32_t* window_id, size_t _,
   }
 }
 
-static void front_app_handler() {
+static void front_app_handler(uint32_t event, void* data, size_t len, int cid) {
+  (void)event; (void)data; (void)len;
+  windows_mission_control_prune(cid);
+#ifdef DEBUG
+  windows_debug_dump_mission_control_candidates(cid);
+#endif
   debug("Window Focus\n");
   schedule_focus_update(50000);
 }

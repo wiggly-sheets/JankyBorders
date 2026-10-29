@@ -29,36 +29,39 @@ pid_t g_pid;
 mach_port_t g_server_port;
 struct table g_windows;
 struct mach_server g_mach_server;
-struct settings g_settings = { .enabled = true,
-                               .active_window = {
-                                 .layer_count = 1,
-                                 .layers = {{ .stype = COLOR_STYLE_SOLID,
-                                              .color = 0xffe1e3e4 }}},
-                               .inactive_window = {
-                                 .layer_count = 1,
-                                 .layers = {{ .stype = COLOR_STYLE_SOLID,
-                                              .color =  0x00000000 }}},
-                               .background = { .stype = COLOR_STYLE_SOLID,
-                                               .color = 0x00000000         },
-                               .border_width = 4.f,
-                               .inner_border_width = 4.f,
-                               .double_border_gap = 0.f,
-                               .blur_radius = 0,
-                               .border_style = BORDER_STYLE_ROUND,
-                               .hidpi = false,
-                               .background_mode = BORDER_BACKGROUND_AUTO,
-                               .force_cg = false,
-                               .show_background = false,
-                               .border_order = BORDER_ORDER_BELOW,
-                               .ax_focus = false,
-                               .animation = 0,
-                               .inactive_animation = 0,
-                               .animation_duration = 0.25f,
-                               .animation_easing = ANIMATION_EASING_LINEAR,
-                               .shimmer_duration = 3.0f,
-                               .shimmer_fps = 30.0f,
-                               .blacklist_enabled = false,
-                               .whitelist_enabled = false                    };
+   struct settings g_settings = { .enabled = true,
+                                .active_window = {
+                                  .layer_count = 1,
+                                  .layers = {{ .stype = COLOR_STYLE_SOLID,
+                                               .color = 0xffe1e3e4 }}},
+                                .inactive_window = {
+                                  .layer_count = 1,
+                                  .layers = {{ .stype = COLOR_STYLE_SOLID,
+                                               .color =  0x00000000 }}},
+                                .background = { .stype = COLOR_STYLE_SOLID,
+                                                .color = 0x00000000         },
+                                .border_width = 4.f,
+                                .inner_border_width = 4.f,
+                                .double_border_gap = 0.f,
+                                .blur_radius = 0,
+                                .border_style = BORDER_STYLE_ROUND,
+                                .hidpi = false,
+                                .background_mode = BORDER_BACKGROUND_AUTO,
+                                .force_cg = false,
+                                .show_background = false,
+                                .border_order = BORDER_ORDER_BELOW,
+                                .ax_focus = false,
+                                .animation = 0,
+                                .inactive_animation = 0,
+                                .animation_duration = 0.25f,
+                                .animation_easing = ANIMATION_EASING_LINEAR,
+                                .shimmer_duration = 3.0f,
+                                .shimmer_fps = 30.0f,
+                                 .fade_duration = 0.f,
+                                .blacklist_enabled = false,
+                                .whitelist_enabled = false,
+                                .hide_on_mc = true,
+                                .hide_on_expose = true                    };
 
 static TABLE_HASH_FUNC(hash_windows) {
   return *(uint32_t *) key;
@@ -319,6 +322,19 @@ int main(int argc, char** argv) {
     windows_cleanup_orphaned_borders(&g_windows);
   });
   dispatch_resume(cleanup_timer);
+
+  // Watchdog only: SkyLight can drop the backdrop destroy event, which would
+  // otherwise strand every border hidden. Prune is a no-op while idle.
+  dispatch_source_t mc_timer = dispatch_source_create(
+      DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+  dispatch_source_set_timer(mc_timer,
+                            dispatch_time(DISPATCH_TIME_NOW, 0),
+                            1ull * NSEC_PER_SEC,
+                            10ull * NSEC_PER_MSEC);
+  dispatch_source_set_event_handler(mc_timer, ^{
+    windows_mission_control_prune(SLSMainConnectionID());
+  });
+  dispatch_resume(mc_timer);
 
   CFRunLoopRun();
   return 0;

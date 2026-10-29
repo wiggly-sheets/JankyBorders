@@ -2,6 +2,7 @@
 #include "hashtable.h"
 #include "border.h"
 #include "misc/ax.h"
+#include "misc/mission_control.h"
 #include <QuartzCore/QuartzCore.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -10,9 +11,16 @@
 
 extern pid_t g_pid;
 extern struct settings g_settings;
+extern struct table g_windows;
 
 // Loaded via dlsym in main.c
 extern CFArrayRef (*JBSLSWindowIteratorGetCornerRadii)(CFTypeRef);
+
+// macOS 27 composites Mission Control in WindowManager, which creates one
+// full-display backdrop window per active display. WindowServer no longer hides
+// third party overlays while Mission Control is open, so borders have to detect
+// the backdrop themselves.
+bool g_mission_control_active = false;
 
 static bool windows_border_shimmer_enabled(struct border* border);
 
@@ -260,6 +268,17 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
           windows_cancel_border_animation(border);
           border->focused = false;
           border->needs_redraw = true;
+          if (new_settings->fade_duration > 0.0f) {
+            border->anim_start = now;
+            if (!border->fade_timer) {
+              border->fade_timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+              dispatch_source_set_timer(border->fade_timer, dispatch_time(DISPATCH_TIME_NOW, 0), NSEC_PER_SEC / 120, NSEC_PER_MSEC);
+              dispatch_source_set_event_handler(border->fade_timer, ^{
+                border_update(border, false);
+              });
+              dispatch_resume(border->fade_timer);
+            }
+          }
           if (old_settings->inactive_animation) {
             border->animating = true;
             border->anim_mode = old_settings->inactive_animation;
@@ -281,6 +300,16 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
     new_focus->anim_start = now;
     new_focus->anim_duration = new_settings->animation_duration;
     new_focus->anim_alpha = new_focus->animating ? 0.0f : 1.0f;
+    if (new_settings->fade_duration > 0.0f) {
+      if (!new_focus->fade_timer) {
+        new_focus->fade_timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+        dispatch_source_set_timer(new_focus->fade_timer, dispatch_time(DISPATCH_TIME_NOW, 0), NSEC_PER_SEC / 120, NSEC_PER_MSEC);
+        dispatch_source_set_event_handler(new_focus->fade_timer, ^{
+          border_update(new_focus, false);
+        });
+        dispatch_resume(new_focus->fade_timer);
+      }
+    }
 
     if (new_settings->animation & ANIM_SLIDE) {
       CGRect old_bounds, new_bounds;
@@ -321,6 +350,19 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
           border->focused = false;
           border->needs_redraw = true;
           border_invalidate_props(border);
+          struct settings* s = border_get_settings(border);
+          if (s->fade_duration > 0.0f) {
+            CFTimeInterval now = CACurrentMediaTime();
+            border->anim_start = now;
+            if (!border->fade_timer) {
+              border->fade_timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+              dispatch_source_set_timer(border->fade_timer, dispatch_time(DISPATCH_TIME_NOW, 0), NSEC_PER_SEC / 120, NSEC_PER_MSEC);
+              dispatch_source_set_event_handler(border->fade_timer, ^{
+                border_update(border, false);
+              });
+              dispatch_resume(border->fade_timer);
+            }
+          }
           border_update(border, false);
         }
 
@@ -329,6 +371,19 @@ static bool windows_window_focus_with_mouse_state(struct table* windows,
           border->focused = true;
           border->needs_redraw = true;
           border_invalidate_props(border);
+          struct settings* s = border_get_settings(border);
+          if (s->fade_duration > 0.0f) {
+            CFTimeInterval now = CACurrentMediaTime();
+            border->anim_start = now;
+            if (!border->fade_timer) {
+              border->fade_timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+              dispatch_source_set_timer(border->fade_timer, dispatch_time(DISPATCH_TIME_NOW, 0), NSEC_PER_SEC / 120, NSEC_PER_MSEC);
+              dispatch_source_set_event_handler(border->fade_timer, ^{
+                border_update(border, false);
+              });
+              dispatch_resume(border->fade_timer);
+            }
+          }
           // Focus gain can drop the host to NONE: destroy the inactive
           // companion synchronously so no dim lingers through debounce.
           border_update(border, false);
@@ -454,8 +509,140 @@ void windows_determine_and_focus_active_window(struct table* windows) {
   if (g_settings.active_only) windows_remove_all_except(windows, front_wid);
 }
 
+void windows_hide_all_borders(struct table* windows) {
+  for (int i = 0; i < windows->capacity; ++i) {
+    struct bucket* bucket = windows->buckets[i];
+    while (bucket) {
+      struct border* border = bucket->value;
+      if (border) border_hide(border);
+      bucket = bucket->next;
+    }
+  }
+}
+
+#ifdef DEBUG
+
+// Empty when the window has no resolvable owning process.
+static void debug_window_owner_name(int cid, uint32_t wid, char* out) {
+  out[0] = '\0';
+  int wid_cid = 0;
+  if (SLSGetWindowOwner(cid, wid, &wid_cid) != kCGErrorSuccess || !wid_cid) return;
+  pid_t pid = 0;
+  if (SLSConnectionGetPID(wid_cid, &pid) != kCGErrorSuccess || !pid) return;
+  proc_name(pid, out, PROC_PIDPATHINFO_MAXSIZE);
+}
+
+// Diagnostic only, no filtering. The seeded level 19 came from the upstream fix
+// and has never matched a window on this macOS 27 build, so the old 13..20 sweep
+// could not distinguish "backdrop is elsewhere" from "the query returned
+// nothing". Print everything and let the owner name, the level and the MATCH
+// marker say where the backdrop actually is.
+static void debug_dump_near_level(int cid, CFArrayRef spaces, const char* label) {
+  uint64_t set_tags = 1;
+  uint64_t clear_tags = 0;
+  CFArrayRef window_list = SLSCopyWindowsWithOptionsAndTags(cid,
+                                                             0,
+                                                             spaces,
+                                                             0x2,
+                                                             &set_tags,
+                                                             &clear_tags );
+  if (!window_list) {
+    printf(" [%s END list=NULL query=NULL iter=0 wm=0]", label);
+    return;
+  }
+
+  long listed = (long)CFArrayGetCount(window_list);
+  CFTypeRef query = listed > 0 ? SLSWindowQueryWindows(cid, window_list, 0x0)
+                               : NULL;
+  CFTypeRef iterator = query ? SLSWindowQueryResultCopyWindows(query) : NULL;
+  long iterated = 0;
+  int wm_count = 0;
+
+  while (iterator && SLSWindowIteratorAdvance(iterator)) {
+    int level = SLSWindowIteratorGetLevel(iterator);
+    uint32_t wid = SLSWindowIteratorGetWindowID(iterator);
+    char owner[PROC_PIDPATHINFO_MAXSIZE];
+    debug_window_owner_name(cid, wid, owner);
+    // Flag WindowManager's windows whatever their level: if the backdrop sits at
+    // 3 or 27 this is the only thing in the log that points at it.
+    bool is_wm = *owner && (strcmp(owner, MISSION_CONTROL_OWNER) == 0
+                            || (strcasestr(owner, "Window")
+                                && strcasestr(owner, "Manager")      ));
+    if (is_wm) ++wm_count;
+    CGRect bounds = CGRectNull;
+    SLSGetWindowBounds(cid, wid, &bounds);
+    if (is_wm) {
+      printf(" [%s %u lvl=%d %s %.0f,%.0f %.0fx%.0f WM]",
+             label,
+             wid,
+             level,
+             owner,
+             bounds.origin.x,
+             bounds.origin.y,
+             bounds.size.width,
+             bounds.size.height);
+    }
+    ++iterated;
+  }
+
+  // Every stage reports its count, so an empty result names the call that broke
+  // instead of looking like "no windows in range". wm=0 with a healthy list
+  // means the backdrop is not owned by WindowManager either.
+  if (query) {
+    printf(" [%s END list=%ld query=%d iter=%ld wm=%d]",
+           label,
+           listed,
+           SLSWindowIteratorGetCount(iterator),
+           iterated,
+           wm_count);
+  } else {
+    printf(" [%s END list=%ld query=NULL iter=%ld wm=%d]",
+           label,
+           listed,
+           iterated,
+           wm_count);
+  }
+
+  if (iterator) CFRelease(iterator);
+  if (query) CFRelease(query);
+  CFRelease(window_list);
+
+  // Third pass removed: SLSCopyWindowsWithOptionsAndTags with empty spaces
+  // array crashes SkyLight internally. The space-filtered query above is
+  // the only safe sweep.
+}
+
+void windows_debug_dump_mission_control_candidates(int cid) {
+  CFArrayRef displays = SLSCopyManagedDisplays(cid);
+  if (!displays) {
+    printf(" [mc-scan END displays=NULL]\n");
+    return;
+  }
+
+  uint32_t count = CFArrayGetCount(displays);
+  uint64_t spaces[count];
+  for (uint32_t i = 0; i < count; ++i) {
+    spaces[i] = SLSManagedDisplayGetCurrentSpace(
+        cid, CFArrayGetValueAtIndex(displays, i));
+  }
+  CFRelease(displays);
+
+  CFArrayRef space_list = cfarray_of_cfnumbers(spaces,
+                                                sizeof(uint64_t),
+                                                count,
+                                                kCFNumberSInt64Type);
+  if (space_list) {
+    debug_dump_near_level(cid, space_list, "mc-scan");
+    printf("\n");
+    CFRelease(space_list);
+  }
+}
+
+#endif
+
 void windows_draw_borders_on_current_spaces(struct table* windows) {
   debug("Space Change: Consistency check\n");
+  if (g_mission_control_active && g_settings.hide_on_mc) return;
   int cid = SLSMainConnectionID();
   if (g_settings.active_only) {
     windows_determine_and_focus_active_window(windows);
@@ -616,3 +803,22 @@ void windows_add_existing_windows(struct table* windows) {
   CFRelease(space_list_ref);
   free(space_list);
 }
+
+bool mission_control_covers_display(CGRect bounds) {
+  uint32_t display_count = 0;
+  if (CGGetActiveDisplayList(0, NULL, &display_count) != kCGErrorSuccess
+      || !display_count) {
+    return false;
+  }
+  uint32_t displays[display_count];
+  if (CGGetActiveDisplayList(display_count,
+                             displays,
+                             &display_count    ) != kCGErrorSuccess) {
+    return false;
+  }
+  for (uint32_t i = 0; i < display_count; ++i) {
+    if (CGRectEqualToRect(bounds, CGDisplayBounds(displays[i]))) return true;
+  }
+  return false;
+}
+
