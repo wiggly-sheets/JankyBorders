@@ -22,7 +22,7 @@ void windows_add_existing_windows(struct table* windows);
 void windows_cleanup_orphaned_borders(struct table* windows);
 void windows_hide_all_borders(struct table* windows);
 void windows_mission_control_window_created(int cid, uint32_t wid);
-void windows_mission_control_window_level_changed(int cid, uint32_t wid);
+void windows_mission_control_window_observed(int cid, uint32_t wid);
 void windows_mission_control_window_destroyed(int cid, uint32_t wid);
 void windows_mission_control_prune(int cid);
 void windows_draw_borders_on_current_spaces(struct table* windows);

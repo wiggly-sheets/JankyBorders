@@ -6,8 +6,8 @@
 #define MISSION_CONTROL_OWNER          "WindowManager"
 #define MISSION_CONTROL_MAX_BACKDROPS  16
 #define MISSION_CONTROL_DEFAULT_BACKDROP_LEVEL 19
-#define MISSION_CONTROL_EVENT_BURST_COUNT 4
-#define MISSION_CONTROL_EVENT_BURST_SECONDS 0.25
+#define MISSION_CONTROL_EVENT_BURST_COUNT 3
+#define MISSION_CONTROL_EVENT_BURST_SECONDS 0.5
 
 extern bool g_mission_control_active;
 extern struct table g_windows;
@@ -105,12 +105,18 @@ static void mission_control_enter() {
   windows_hide_all_borders(&g_windows);
 }
 
+static void mission_control_track_backdrop(uint32_t wid) {
+  if (mission_control_find_backdrop(wid) >= 0
+      || g_mc_backdrop_count >= MISSION_CONTROL_MAX_BACKDROPS) {
+    return;
+  }
+  g_mc_backdrops[g_mc_backdrop_count++] = wid;
+}
+
 void windows_mission_control_window_created(int cid, uint32_t wid) {
-  if (mission_control_find_backdrop(wid) >= 0) return;
-  if (g_mc_backdrop_count >= MISSION_CONTROL_MAX_BACKDROPS) return;
   if (!mission_control_is_backdrop(cid, wid)) return;
 
-  g_mc_backdrops[g_mc_backdrop_count++] = wid;
+  mission_control_track_backdrop(wid);
   debug("Mission Control Enter (backdrop %d)\n", wid);
   mission_control_enter();
 }
@@ -120,7 +126,7 @@ void windows_mission_control_window_created(int cid, uint32_t wid) {
 // distinct level-change events in one short burst. Treat only that exact,
 // owner-verified signature as a fallback; normal WindowManager UI does not
 // satisfy both the geometry and burst constraints.
-void windows_mission_control_window_level_changed(int cid, uint32_t wid) {
+void windows_mission_control_window_observed(int cid, uint32_t wid) {
   windows_mission_control_window_created(cid, wid);
   if (g_mission_control_active
       || !mission_control_window_manager_with_tiny_bounds(cid, wid)) {
@@ -141,7 +147,7 @@ void windows_mission_control_window_level_changed(int cid, uint32_t wid) {
   if (g_mc_level_candidate_count < MISSION_CONTROL_EVENT_BURST_COUNT) return;
 
   for (int i = 0; i < g_mc_level_candidate_count; ++i) {
-    g_mc_backdrops[g_mc_backdrop_count++] = g_mc_level_candidates[i];
+    mission_control_track_backdrop(g_mc_level_candidates[i]);
   }
   g_mc_level_candidate_count = 0;
   debug("Mission Control Enter (WindowManager event burst)\n");
@@ -155,6 +161,16 @@ void windows_mission_control_window_destroyed(int cid, uint32_t wid) {
   // remove it after verifying that the underlying window really no longer
   // exists.
   windows_mission_control_prune(cid);
+  // WindowManager often keeps a stale owner record briefly after emitting the
+  // destroy event. Recheck promptly instead of waiting for a focus change or
+  // the one-second watchdog.
+  for (uint64_t delay_ms = 50; delay_ms <= 500; delay_ms += 100) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+                                 (int64_t)delay_ms * NSEC_PER_MSEC),
+                   dispatch_get_main_queue(), ^{
+      windows_mission_control_prune(cid);
+    });
+  }
 }
 
 static void mission_control_exit() {

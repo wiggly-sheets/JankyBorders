@@ -42,6 +42,9 @@ struct settings* border_get_settings(struct border* border) {
 // A second WindowManager window that also covers a display exactly, so a level
 // the detector never learned can be tested without reusing the tracked backdrop.
 #define TEST_MC_OTHER_WID      44u
+#define TEST_MC_TINY_WID_1     45u
+#define TEST_MC_TINY_WID_2     46u
+#define TEST_MC_TINY_WID_3     47u
 #define TEST_MC_DISPLAY_BOUNDS (CGRect){{0.0, 0.0}, {1920.0, 1080.0}}
 #define TEST_MC_NO_WINDOW      ((CGError)1001)
 
@@ -56,6 +59,11 @@ CGError SLSGetWindowBounds(int cid, uint32_t wid, CGRect* frame) {
     // of the display, so it is a normal overlay and not a Mission Control
     // backdrop.
     *frame = (CGRect){{0.0, 0.0}, {960.0, 1080.0}};
+    return kCGErrorSuccess;
+  }
+  if (wid == TEST_MC_TINY_WID_1 || wid == TEST_MC_TINY_WID_2
+      || wid == TEST_MC_TINY_WID_3) {
+    *frame = (CGRect){{0.0, 0.0}, {0.0, 0.0}};
     return kCGErrorSuccess;
   }
   *frame = wid == 1
@@ -97,7 +105,8 @@ CGRect test_cg_display_bounds(uint32_t display) {
 CGError SLSGetWindowOwner(int cid, uint32_t wid, int* out_cid) {
   (void)cid;
   if (wid != TEST_MC_WID && wid != TEST_MC_PARTIAL_WID
-      && wid != TEST_MC_OTHER_WID) {
+      && wid != TEST_MC_OTHER_WID && wid != TEST_MC_TINY_WID_1
+      && wid != TEST_MC_TINY_WID_2 && wid != TEST_MC_TINY_WID_3) {
     return TEST_MC_NO_WINDOW;
   }
   if (!stub_window_alive) return TEST_MC_NO_WINDOW;
@@ -366,6 +375,8 @@ static void reset_mission_control_state(void) {
   g_mc_backdrop_count = 0;
   g_mc_backdrop_level = 19;
   g_mc_backdrop_level_learned = false;
+  g_mc_level_candidate_count = 0;
+  g_mc_level_candidate_time = 0;
   g_settings = (struct settings){0};
 }
 
@@ -503,6 +514,23 @@ static void test_mission_control_state_machine(void) {
   assert(g_mc_backdrop_count == 0);
 }
 
+static void test_mission_control_event_burst_tolerates_one_missing_surface(void) {
+  reset_mission_control_state();
+  stub_window_alive = true;
+  stub_owner_pid = 4242;
+  stub_owner_name = "WindowManager";
+  stub_level = 19;
+
+  windows_mission_control_window_observed(77, TEST_MC_TINY_WID_1);
+  // Create and level notifications for the same surface must not double count.
+  windows_mission_control_window_observed(77, TEST_MC_TINY_WID_1);
+  windows_mission_control_window_observed(77, TEST_MC_TINY_WID_2);
+  assert(!g_mission_control_active);
+  windows_mission_control_window_observed(77, TEST_MC_TINY_WID_3);
+  assert(g_mission_control_active);
+  assert(g_mc_backdrop_count == 3);
+}
+
 // --- window_suitable predicate tests ----------------------------------------
 
 static uint64_t test_tags;
@@ -579,6 +607,7 @@ int main(void) {
   test_mission_control_learns_backdrop_level();
   test_mission_control_relearns_level_for_tracked_backdrop();
   test_mission_control_state_machine();
+  test_mission_control_event_burst_tolerates_one_missing_surface();
   test_window_suitable_predicate();
   puts("window focus and notification regressions: ok");
   return 0;

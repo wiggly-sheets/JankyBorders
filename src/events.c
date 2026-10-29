@@ -170,7 +170,7 @@ static void window_spawn_handler(uint32_t event,
   // guard below or detection never fires at all; the predicate validates level,
   // owner and display bounds on its own, so it is safe on any window here.
   if (event == EVENT_WINDOW_CREATE) {
-    windows_mission_control_window_created(cid, wid);
+    windows_mission_control_window_observed(cid, wid);
   } else if (event == EVENT_WINDOW_DESTROY) {
     windows_mission_control_window_destroyed(cid, wid);
   }
@@ -239,7 +239,7 @@ static void window_modify_handler(uint32_t event, uint32_t* window_id, size_t _,
     // delivered to this connection, but its level-change event is. Reuse the
     // same strict owner/bounds/level predicate used for spawn events so an
     // ordinary application's level change cannot enter Mission Control.
-    windows_mission_control_window_level_changed(cid, wid);
+    windows_mission_control_window_observed(cid, wid);
     windows_window_refresh(windows, wid);
   } else if (event == EVENT_WINDOW_TITLE || event == EVENT_WINDOW_UPDATE) {
     debug("Window Focus\n");
