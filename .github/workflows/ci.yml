@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Build
+        run: make clean && make
+
+      - name: Debug build
+        run: make debug
+
+      # Warnings are non-fatal here: `make check` emits ~31 pre-existing
+      # -Wunused-parameter / -Wsign-compare diagnostics. Adding -Werror needs a
+      # warning cleanup pass first.
+      - name: Static analysis
+        run: make check
+
+      - name: Test
+        run: make test
+
+      - name: Test under ASan/UBSan
+        run: make asan
