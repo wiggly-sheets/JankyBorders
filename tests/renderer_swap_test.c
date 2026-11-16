@@ -446,23 +446,40 @@ static void test_cg_window_rebuilds_when_layer_is_requested(void) {
   pthread_mutex_destroy(&border.mutex);
 }
 
-// Control: the renderer did not change, so the layer window must be reused.
+// Control: the renderer did not change, so the existing window must be reused.
 static void test_unchanged_renderer_never_rebuilds(void) {
   reset_counts();
-  struct border border = make_border(true);
+  struct border layer_border = make_border(true);
   g_settings = expressible_settings(false);
 
-  border_update_internal(&border, &g_settings);
+  border_update_internal(&layer_border, &g_settings);
 
-  assert(border.use_layer == true);
-  assert(border.wid == SEEDED_LAYER_WID);
+  assert(layer_border.use_layer == true);
+  assert(layer_border.wid == SEEDED_LAYER_WID);
   assert(layer_update_count == 1);
   assert(layer_create_count == 0);
   assert(cg_create_count == 0);
   assert(layer_destroy_count == 0);
   assert(release_window_count == 0);
 
-  pthread_mutex_destroy(&border.mutex);
+  pthread_mutex_destroy(&layer_border.mutex);
+
+  reset_counts();
+  struct border cg_border = make_border(false);
+  g_settings = expressible_settings(true);
+
+  border_update_internal(&cg_border, &g_settings);
+
+  assert(cg_border.use_layer == false);
+  assert(cg_border.wid == SEEDED_CG_WID);
+  assert(layer_update_count == 0);
+  assert(layer_create_count == 0);
+  assert(cg_create_count == 0);
+  assert(layer_destroy_count == 0);
+  assert(release_window_count == 0);
+
+  if (cg_border.context) CGContextRelease(cg_border.context);
+  pthread_mutex_destroy(&cg_border.mutex);
 }
 
 int main(void) {

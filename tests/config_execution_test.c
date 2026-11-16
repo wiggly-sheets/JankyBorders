@@ -10,12 +10,45 @@
 
 static void test_xdg_precedence(void);
 
+#define CONFIG_WAIT_ATTEMPTS 50
+#define CONFIG_WAIT_INTERVAL_US 10000
+
+static void make_temp_dir(char* path, size_t size, const char* name) {
+  const char* tmp = getenv("TMPDIR");
+  if (!tmp || !tmp[0]) tmp = "/tmp";
+  size_t length = strlen(tmp);
+  while (length > 1 && tmp[length - 1] == '/') --length;
+  int written = snprintf(path, size, "%.*s/%s.XXXXXX", (int)length, tmp, name);
+  assert(written > 0 && (size_t)written < size);
+  assert(mkdtemp(path));
+}
+
+static void wait_for_file(const char* path) {
+  // execute_config_file forks and returns no completion signal. The shell and
+  // its printf finish in a few ms, so 500 ms bounds a loaded host.
+  for (int i = 0;
+       i < CONFIG_WAIT_ATTEMPTS && access(path, F_OK) != 0;
+       ++i) {
+    usleep(CONFIG_WAIT_INTERVAL_US);
+  }
+  assert(access(path, F_OK) == 0);
+}
+
+static void assert_file_contents(const char* path, const char* expected) {
+  FILE* file = fopen(path, "r");
+  assert(file);
+  char buffer[8] = {0};
+  fread(buffer, 1, sizeof(buffer) - 1, file);
+  fclose(file);
+  assert(strcmp(buffer, expected) == 0);
+}
+
 int main(void) {
   unsetenv("XDG_CONFIG_HOME");
 
-  char directory[] = "/tmp/jankyborders config.XXXXXX";
-  char* root = mkdtemp(directory);
-  assert(root);
+  char directory[512];
+  make_temp_dir(directory, sizeof(directory), "jankyborders-config");
+  char* root = directory;
 
   char config_directory[512];
   char app_directory[512];
@@ -36,10 +69,8 @@ int main(void) {
   assert(setenv("HOME", root, 1) == 0);
 
   execute_config_file("borders", "bordersrc");
-  for (int i = 0; i < 100 && access(result_path, F_OK) != 0; ++i) {
-    usleep(10000);
-  }
-  assert(access(result_path, F_OK) == 0);
+  wait_for_file(result_path);
+  assert_file_contents(result_path, "ok");
 
   struct stat status;
   assert(stat(config_path, &status) == 0);
@@ -57,9 +88,9 @@ int main(void) {
 }
 
 static void test_xdg_precedence(void) {
-  char directory[] = "/tmp/jankyborders xdg.XXXXXX";
-  char* root = mkdtemp(directory);
-  assert(root);
+  char directory[512];
+  make_temp_dir(directory, sizeof(directory), "jankyborders-xdg");
+  char* root = directory;
 
   char xdg_home[512];
   char xdg_app[512];
@@ -109,18 +140,8 @@ static void test_xdg_precedence(void) {
   assert(setenv("HOME", home_dir, 1) == 0);
 
   execute_config_file("borders", "bordersrc");
-
-  for (int i = 0; i < 100 && access(result_path, F_OK) != 0; ++i) {
-    usleep(10000);
-  }
-  assert(access(result_path, F_OK) == 0);
-
-  FILE* r = fopen(result_path, "r");
-  assert(r);
-  char buf[8] = {0};
-  fread(buf, 1, sizeof(buf) - 1, r);
-  fclose(r);
-  assert(strcmp(buf, "xdg") == 0);
+  wait_for_file(result_path);
+  assert_file_contents(result_path, "xdg");
 
   // XDG unset falls back to $HOME/.config/<name>/<file>.
   unsetenv("XDG_CONFIG_HOME");

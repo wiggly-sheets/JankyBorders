@@ -40,6 +40,19 @@ int main(void) {
   assert(!send_args_to_server(1, 2, arguments));
   free(oversized);
 
+  size_t half_size = MACH_MAX_PAYLOAD_SIZE / 2 + 1;
+  char* first_half = malloc(half_size);
+  char* second_half = malloc(half_size);
+  assert(first_half && second_half);
+  memset(first_half, 'x', half_size - 1);
+  memset(second_half, 'y', half_size - 1);
+  first_half[half_size - 1] = '\0';
+  second_half[half_size - 1] = '\0';
+  char* cumulative_arguments[] = { "borders", first_half, second_half };
+  assert(!send_args_to_server(1, 3, cumulative_arguments));
+  free(second_half);
+  free(first_half);
+
   puts("bounded command payloads: ok");
   return 0;
 }

@@ -28,7 +28,6 @@ int main(void) {
     .double_border_gap = 1.0f,
     .shimmer_duration = 3.0f,
     .shimmer_fps = 30.0f,
-    .animation_duration = 0.25f,
   };
   settings_init_filter_tables(&settings, 8, hash_string, compare_string);
 
@@ -42,20 +41,13 @@ int main(void) {
   assert(parse_one(&settings, trailing_order) == 0);
   assert(settings.border_order == BORDER_ORDER_ABOVE);
 
-  char duration[] = "animation_duration=60";
-  assert(parse_one(&settings, duration) == BORDER_UPDATE_MASK_ANIMATION);
-  char duration_high[] = "animation_duration=60.1";
-  assert(parse_one(&settings, duration_high) == 0);
-  char duration_low[] = "animation_duration=0.001";
-  assert(parse_one(&settings, duration_low) == 0);
-  char duration_trailing[] = "animation_duration=1second";
-  assert(parse_one(&settings, duration_trailing) == 0);
-  assert(settings.animation_duration == 60.0f);
-
   char shimmer_duration[] = "shimmer_duration=3600";
   assert(parse_one(&settings, shimmer_duration) == BORDER_UPDATE_MASK_ALL);
-  char shimmer_tiny[] = "shimmer_duration=1e-45";
-  assert(parse_one(&settings, shimmer_tiny) == 0);
+  char shimmer_duration_high[] = "shimmer_duration=3601";
+  assert(parse_one(&settings, shimmer_duration_high) == 0);
+  // Just below the 1/120 s minimum; avoids strtof ERANGE masking the bound.
+  char shimmer_duration_low[] = "shimmer_duration=0.008";
+  assert(parse_one(&settings, shimmer_duration_low) == 0);
   char shimmer_trailing[] = "shimmer_duration=3seconds";
   assert(parse_one(&settings, shimmer_trailing) == 0);
   assert(settings.shimmer_duration == 3600.0f);
@@ -64,6 +56,8 @@ int main(void) {
   assert(parse_one(&settings, shimmer_fps) == BORDER_UPDATE_MASK_ALL);
   char shimmer_fps_high[] = "shimmer_fps=121";
   assert(parse_one(&settings, shimmer_fps_high) == 0);
+  char shimmer_fps_low[] = "shimmer_fps=0.09";
+  assert(parse_one(&settings, shimmer_fps_low) == 0);
   char shimmer_fps_trailing[] = "shimmer_fps=30fps";
   assert(parse_one(&settings, shimmer_fps_trailing) == 0);
   assert(settings.shimmer_fps == 120.0f);

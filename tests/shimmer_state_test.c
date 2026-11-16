@@ -27,7 +27,7 @@ void border_update(struct border* border, bool try_async) {
 }
 
 static void assert_interval(double expected) {
-  assert(g_anim_timer);
+  assert(animation_is_running());
   assert(fabs(CFRunLoopTimerGetInterval(g_anim_timer) - expected) < 1e-6);
 }
 
@@ -49,6 +49,7 @@ int main(void) {
   animation_tick_callback(NULL, NULL);
   assert(border_update_count == 0);
   assert(!border.needs_redraw);
+  assert(!animation_is_running());
 
   border.focused = false;
   animation_tick_callback(NULL, NULL);
@@ -67,6 +68,7 @@ int main(void) {
   animation_start_ticker();
   assert_interval(1.0 / 120.0);
   animation_stop_ticker();
+  assert(!animation_is_running());
 
   g_settings.shimmer_fps = 30.0f;
   animation_start_ticker();

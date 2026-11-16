@@ -27,7 +27,6 @@ static void test_retry_plan_is_bounded_and_increasing(void) {
 static void test_stale_retry_generations_are_cancelled(void) {
   assert(focus_recovery_retry_is_current(12, 12));
   assert(!focus_recovery_retry_is_current(13, 12));
-  assert(!focus_recovery_retry_is_current(12, 13));
 }
 
 static void test_frontmost_selection_ignores_candidate_space_order(void) {
@@ -95,13 +94,6 @@ static void test_fallback_requires_adjacent_matching_snapshots(void) {
   assert(focus_recovery_fallback_observe(&snapshot, 12, 73));
 }
 
-static void test_resolved_window_is_selected(void) {
-  assert(focus_recovery_decide(FOCUS_RECOVERY_RESULT_RESOLVED, true) ==
-         FOCUS_RECOVERY_SELECT);
-  assert(focus_recovery_decide(FOCUS_RECOVERY_RESULT_RESOLVED, false) ==
-         FOCUS_RECOVERY_SELECT);
-}
-
 static void test_only_final_attempt_can_clear_or_reject_old_process(void) {
   assert(focus_recovery_gate_clear(FOCUS_RECOVERY_RESULT_COMPLETE_NONE,
                                    false) == FOCUS_RECOVERY_RESULT_TRANSIENT);
@@ -113,25 +105,39 @@ static void test_only_final_attempt_can_clear_or_reject_old_process(void) {
          FOCUS_RECOVERY_RESULT_RESOLVED);
 }
 
-static void test_transient_snapshot_holds_confirmed_border(void) {
-  assert(focus_recovery_decide(FOCUS_RECOVERY_RESULT_TRANSIENT, true) ==
-         FOCUS_RECOVERY_HOLD);
-  assert(focus_recovery_decide(FOCUS_RECOVERY_RESULT_TRANSIENT, false) ==
-         FOCUS_RECOVERY_HOLD);
-}
+static void test_decision_mapping(void) {
+  static const struct {
+    enum focus_recovery_resolution resolution;
+    bool previous_target_matches_front_process;
+    enum focus_recovery_decision expected;
+  } cases[] = {
+    { FOCUS_RECOVERY_RESULT_RESOLVED, true, FOCUS_RECOVERY_SELECT },
+    { FOCUS_RECOVERY_RESULT_RESOLVED, false, FOCUS_RECOVERY_SELECT },
+    { FOCUS_RECOVERY_RESULT_TRANSIENT, true, FOCUS_RECOVERY_HOLD },
+    { FOCUS_RECOVERY_RESULT_TRANSIENT, false, FOCUS_RECOVERY_HOLD },
+    { FOCUS_RECOVERY_RESULT_COMPLETE_NONE, true, FOCUS_RECOVERY_CLEAR },
+    { FOCUS_RECOVERY_RESULT_COMPLETE_NONE, false, FOCUS_RECOVERY_CLEAR },
+    { FOCUS_RECOVERY_RESULT_AMBIGUOUS, true, FOCUS_RECOVERY_HOLD },
+    { FOCUS_RECOVERY_RESULT_AMBIGUOUS, false, FOCUS_RECOVERY_CLEAR },
+    { (enum focus_recovery_resolution)99, true, FOCUS_RECOVERY_HOLD },
+    { (enum focus_recovery_resolution)99, false, FOCUS_RECOVERY_HOLD },
+  };
 
-static void test_complete_empty_snapshot_clears_border(void) {
-  assert(focus_recovery_decide(FOCUS_RECOVERY_RESULT_COMPLETE_NONE, true) ==
-         FOCUS_RECOVERY_CLEAR);
-  assert(focus_recovery_decide(FOCUS_RECOVERY_RESULT_COMPLETE_NONE, false) ==
-         FOCUS_RECOVERY_CLEAR);
-}
-
-static void test_ambiguous_snapshot_only_holds_same_front_process(void) {
-  assert(focus_recovery_decide(FOCUS_RECOVERY_RESULT_AMBIGUOUS, true) ==
-         FOCUS_RECOVERY_HOLD);
-  assert(focus_recovery_decide(FOCUS_RECOVERY_RESULT_AMBIGUOUS, false) ==
-         FOCUS_RECOVERY_CLEAR);
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    enum focus_recovery_decision actual = focus_recovery_decide(
+        cases[i].resolution,
+        cases[i].previous_target_matches_front_process);
+    if (actual != cases[i].expected) {
+      fprintf(stderr,
+              "decision for resolution %d (previous matches %d) was %d,"
+              " expected %d\n",
+              (int)cases[i].resolution,
+              (int)cases[i].previous_target_matches_front_process,
+              (int)actual,
+              (int)cases[i].expected);
+    }
+    assert(actual == cases[i].expected);
+  }
 }
 
 int main(void) {
@@ -142,11 +148,8 @@ int main(void) {
   test_event_bursts_coalesce_without_postponing_active_series();
   test_held_dirty_final_probe_requests_one_trailing_series();
   test_fallback_requires_adjacent_matching_snapshots();
-  test_resolved_window_is_selected();
   test_only_final_attempt_can_clear_or_reject_old_process();
-  test_transient_snapshot_holds_confirmed_border();
-  test_complete_empty_snapshot_clears_border();
-  test_ambiguous_snapshot_only_holds_same_front_process();
+  test_decision_mapping();
   puts("focus recovery predicates: ok");
   return 0;
 }

@@ -40,7 +40,16 @@ int main(void) {
   assert(table_find(&clone.blacklist, safari));
 
   struct settings replacement = {};
+  settings_init_filter_tables(&replacement, 8, hash_string, compare_string);
+  char firefox[] = "Firefox";
+  _table_add(&replacement.blacklist,
+             firefox,
+             sizeof(firefox),
+             (void*)true);
   settings_replace(&replacement, &clone);
+  assert(replacement.owns_filter_tables);
+  assert(table_find(&replacement.blacklist, safari));
+  assert(!table_find(&replacement.blacklist, firefox));
   settings_destroy(&clone);
   assert(table_find(&replacement.blacklist, safari));
 

@@ -580,6 +580,12 @@ static void test_window_suitable_predicate(void) {
   test_parent = 0;
   assert(window_suitable(NULL));
 
+  // FLOATING without MODAL -> not suitable (both tags are required).
+  test_tags = WINDOW_TAG_FLOATING | visible_tagbit;
+  test_attrs = 0;
+  test_parent = 0;
+  assert(!window_suitable(NULL));
+
   // ATTACHED -> not suitable
   test_tags = WINDOW_TAG_DOCUMENT | visible_tagbit | WINDOW_TAG_ATTACHED;
   test_attrs = 0;
@@ -590,6 +596,12 @@ static void test_window_suitable_predicate(void) {
   test_tags = WINDOW_TAG_DOCUMENT | visible_tagbit;
   test_attrs = 0;
   test_parent = 42;
+  assert(!window_suitable(NULL));
+
+  // No visible signal in either tags or attributes -> not suitable.
+  test_tags = WINDOW_TAG_DOCUMENT;
+  test_attrs = 0;
+  test_parent = 0;
   assert(!window_suitable(NULL));
 
   // Also verify visible signal via attributes bit
