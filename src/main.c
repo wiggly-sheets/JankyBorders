@@ -323,15 +323,16 @@ int main(int argc, char** argv) {
   });
   dispatch_resume(cleanup_timer);
 
-  // Watchdog only: SkyLight can drop the backdrop destroy event, which would
-  // otherwise strand every border hidden. Prune is a no-op while idle.
+  // Mission Control detection polls the window server every 250ms. SkyLight
+  // events are not reliable for WindowManager's surfaces on macOS 27.
   dispatch_source_t mc_timer = dispatch_source_create(
       DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
   dispatch_source_set_timer(mc_timer,
                             dispatch_time(DISPATCH_TIME_NOW, 0),
-                            1ull * NSEC_PER_SEC,
+                            250ull * NSEC_PER_MSEC,
                             10ull * NSEC_PER_MSEC);
   dispatch_source_set_event_handler(mc_timer, ^{
+    windows_mission_control_poll();
     windows_mission_control_prune(SLSMainConnectionID());
   });
   dispatch_resume(mc_timer);

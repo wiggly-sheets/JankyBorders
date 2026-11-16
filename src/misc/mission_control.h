@@ -2,6 +2,7 @@
 
 #include "../windows.h"
 #include <libproc.h>
+#include <CoreGraphics/CoreGraphics.h>
 
 #define MISSION_CONTROL_OWNER          "WindowManager"
 #define MISSION_CONTROL_MAX_BACKDROPS  16
@@ -98,6 +99,71 @@ static bool mission_control_window_manager_with_tiny_bounds(int cid,
   return bounds.size.width <= 1.0 && bounds.size.height <= 1.0;
 }
 
+static bool mission_control_display_covered(CGRect bounds) {
+  uint32_t count = 0;
+  if (CGGetActiveDisplayList(0, NULL, &count) != kCGErrorSuccess || count == 0) {
+    return false;
+  }
+  CGDirectDisplayID displays[16];
+  if (count > 16) count = 16;
+  if (CGGetActiveDisplayList(count, displays, &count) != kCGErrorSuccess) {
+    return false;
+  }
+
+  CGSize largest = CGSizeZero;
+  for (uint32_t i = 0; i < count; ++i) {
+    CGRect display = CGDisplayBounds(displays[i]);
+    if (display.size.width > largest.width) largest.width = display.size.width;
+    if (display.size.height > largest.height) largest.height = display.size.height;
+  }
+  return largest.width > 0 && largest.height > 0
+      && bounds.size.width >= largest.width * 0.5
+      && bounds.size.height >= largest.height * 0.5;
+}
+
+// Polls the window server instead of trusting SkyLight's create, destroy, and
+// level events. On macOS 27 those events are not reliable for WindowManager's
+// Mission Control surfaces. A full-screen layer-19 WindowManager window is the
+// same signal MenuTitle uses, and it only appears while Mission Control is up.
+static bool mission_control_backdrop_on_screen(void) {
+  CFArrayRef windows = CGWindowListCopyWindowInfo(
+      kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
+      kCGNullWindowID);
+  if (!windows) return false;
+
+  bool found = false;
+  CFIndex count = CFArrayGetCount(windows);
+  for (CFIndex i = 0; i < count && !found; ++i) {
+    CFDictionaryRef window =
+        (CFDictionaryRef)CFArrayGetValueAtIndex(windows, i);
+    CFNumberRef layer_ref =
+        (CFNumberRef)CFDictionaryGetValue(window, kCGWindowLayer);
+    CFStringRef owner_ref =
+        (CFStringRef)CFDictionaryGetValue(window, kCGWindowOwnerName);
+    CFDictionaryRef bounds_ref =
+        (CFDictionaryRef)CFDictionaryGetValue(window, kCGWindowBounds);
+    if (!layer_ref || !owner_ref || !bounds_ref) continue;
+
+    int layer = 0;
+    if (!CFNumberGetValue(layer_ref, kCFNumberIntType, &layer)) continue;
+    if (layer != MISSION_CONTROL_DEFAULT_BACKDROP_LEVEL
+        && (!g_mc_backdrop_level_learned || layer != g_mc_backdrop_level)) {
+      continue;
+    }
+    if (CFStringCompare(owner_ref, CFSTR(MISSION_CONTROL_OWNER), 0)
+        != kCFCompareEqualTo) {
+      continue;
+    }
+
+    CGRect bounds = CGRectZero;
+    if (!CGRectMakeWithDictionaryRepresentation(bounds_ref, &bounds)) continue;
+    if (mission_control_display_covered(bounds)) found = true;
+  }
+
+  CFRelease(windows);
+  return found;
+}
+
 static void mission_control_enter() {
   if (g_mission_control_active) return;
   g_mission_control_active = true;
@@ -183,6 +249,20 @@ static void mission_control_exit() {
   });
 }
 
+void windows_mission_control_poll(void) {
+  if (mission_control_backdrop_on_screen()) {
+    if (!g_mission_control_active) {
+      g_mc_backdrop_count = 0;
+      mission_control_enter();
+    }
+    return;
+  }
+  if (g_mission_control_active) {
+    g_mc_backdrop_count = 0;
+    mission_control_exit();
+  }
+}
+
 void windows_mission_control_prune(int cid) {
   if (!g_mission_control_active || !g_mc_backdrop_count) return;
 
@@ -196,6 +276,9 @@ void windows_mission_control_prune(int cid) {
   }
   g_mc_backdrop_count = kept;
   if (g_mc_backdrop_count) return;
+  // Keep the borders hidden while the poll still sees the Mission Control
+  // shield. WindowManager can drop a tracked window during the open animation.
+  if (mission_control_backdrop_on_screen()) return;
 
   mission_control_exit();
 }
